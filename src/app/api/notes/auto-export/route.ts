@@ -1,10 +1,10 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
+import { getCurrentUserId } from "@/lib/get-user";
 import { modelRouter } from "@/lib/llm/model-router";
 
-const DEFAULT_USER_ID = "default-user";
-
 export async function POST(req: NextRequest) {
+  const userId = await getCurrentUserId();
   const body = await req.json();
   const { conversationId } = body;
 
@@ -96,7 +96,7 @@ ${noteContent.slice(0, 3000)}`,
       content: noteContent,
       summary,
       conversationId,
-      userId: DEFAULT_USER_ID,
+      userId,
       tags: {
         create: validTagIds.map((tagId) => ({ tagId })),
       },

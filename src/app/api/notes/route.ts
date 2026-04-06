@@ -1,16 +1,16 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
-
-const DEFAULT_USER_ID = "default-user";
+import { getCurrentUserId } from "@/lib/get-user";
 
 export async function GET(req: NextRequest) {
+  const userId = await getCurrentUserId();
   const searchParams = req.nextUrl.searchParams;
   const tagId = searchParams.get("tagId");
   const search = searchParams.get("search");
   const page = parseInt(searchParams.get("page") || "1");
   const limit = parseInt(searchParams.get("limit") || "20");
 
-  const where: Record<string, unknown> = { userId: DEFAULT_USER_ID };
+  const where: Record<string, unknown> = { userId };
 
   if (tagId) {
     where.tags = { some: { tagId } };
@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const userId = await getCurrentUserId();
   const body = await req.json();
   const { title, content, summary, conversationId, tagIds = [] } = body;
 
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
       content,
       summary,
       conversationId,
-      userId: DEFAULT_USER_ID,
+      userId,
       tags: {
         create: tagIds.map((tagId: string) => ({ tagId })),
       },

@@ -1,11 +1,14 @@
 import { NextRequest } from "next/server";
 import { modelRouter } from "@/lib/llm/model-router";
 import { buildContext } from "@/lib/llm/context-manager";
-import { prisma } from "@/lib/db";
+import { prisma, ensureDefaultUser } from "@/lib/db";
+import { getCurrentUserId } from "@/lib/get-user";
 import type { ChatMessage } from "@/lib/llm/types";
 
 export async function POST(req: NextRequest) {
   try {
+    await ensureDefaultUser();
+    const userId = await getCurrentUserId();
     const body = await req.json();
     const { conversationId, content, model = "gpt-4o" } = body;
 
@@ -19,7 +22,7 @@ export async function POST(req: NextRequest) {
       const conv = await prisma.conversation.create({
         data: {
           model,
-          userId: "default-user", // TODO: replace with auth
+          userId,
         },
       });
       convId = conv.id;
