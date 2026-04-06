@@ -3,6 +3,7 @@
 import { useCallback } from "react";
 import { MessageList } from "@/components/chat/MessageList";
 import { ChatInput } from "@/components/chat/ChatInput";
+import { ExportNoteButton } from "@/components/chat/ExportNoteButton";
 import { useConversationStore } from "@/stores/conversation-store";
 import { sendMessage } from "@/lib/api-client";
 
@@ -79,6 +80,11 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
+      {activeConversationId && messages.length > 0 && (
+        <div className="flex items-center justify-end border-b border-border px-4 py-1.5">
+          <ExportNoteButton conversationId={activeConversationId} />
+        </div>
+      )}
       <MessageList messages={messages} />
       <ChatInput onSend={handleSend} disabled={isStreaming} />
     </div>
