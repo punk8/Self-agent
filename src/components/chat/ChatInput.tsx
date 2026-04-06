@@ -41,8 +41,8 @@ export function ChatInput({ onSend, onStop, disabled, isStreaming }: ChatInputPr
   };
 
   return (
-    <div className="border-t border-border bg-background p-2 md:p-4">
-      <div className="mx-auto flex max-w-3xl items-end gap-2">
+    <div className="border-t border-border/70 bg-background/45 px-3 py-3 backdrop-blur md:px-6 md:py-5">
+      <div className="mx-auto flex max-w-4xl items-end gap-3">
         <Textarea
           ref={textareaRef}
           value={input}
@@ -51,7 +51,7 @@ export function ChatInput({ onSend, onStop, disabled, isStreaming }: ChatInputPr
           placeholder="输入消息..."
           disabled={disabled}
           rows={1}
-          className="min-h-[44px] max-h-[200px] resize-none"
+          className="min-h-[58px] max-h-[200px] resize-none pr-4"
         />
         {isStreaming ? (
           <Button
@@ -61,7 +61,7 @@ export function ChatInput({ onSend, onStop, disabled, isStreaming }: ChatInputPr
             className="shrink-0"
             title="停止回复"
           >
-            <Square className="h-4 w-4" />
+          <Square className="h-4 w-4" />
           </Button>
         ) : (
           <Button

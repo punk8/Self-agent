@@ -37,17 +37,20 @@ export function ChatSidebar() {
           onDelete={removeConversation}
         />
       </div>
-      <div className="border-t border-sidebar-border p-3 space-y-1">
+      <div className="border-t border-sidebar-border/80 px-4 py-4">
+        <p className="mb-2 text-[0.68rem] uppercase tracking-[0.22em] text-muted-foreground">
+          Library
+        </p>
         <Link
           href="/notes"
-          className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="story-link mb-1 flex items-center gap-2 rounded-2xl px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent/65 hover:text-foreground"
         >
           <BookOpen className="h-4 w-4" />
           笔记
         </Link>
         <Link
           href="/settings"
-          className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="story-link flex items-center gap-2 rounded-2xl px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent/65 hover:text-foreground"
         >
           <Settings className="h-4 w-4" />
           设置

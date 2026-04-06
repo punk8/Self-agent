@@ -7,6 +7,7 @@ export async function proxy(request: NextRequest) {
   // Public routes - no auth needed
   if (
     pathname.startsWith("/login") ||
+    pathname.startsWith("/preview") ||
     pathname.startsWith("/api/auth")
   ) {
     return NextResponse.next();

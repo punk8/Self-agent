@@ -95,11 +95,17 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      <div className="flex items-center justify-between border-b border-border px-4 py-1.5">
-        <ModelSelector value={selectedModel} onChange={setSelectedModel} />
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 px-5 py-4 md:px-8">
+        <div>
+          <p className="text-[0.68rem] uppercase tracking-[0.24em] text-muted-foreground">Workspace</p>
+          <h1 className="font-display text-[2rem] leading-none md:text-[2.35rem]">Self-Agent</h1>
+        </div>
+        <div className="flex items-center gap-3">
+          <ModelSelector value={selectedModel} onChange={setSelectedModel} />
         {activeConversationId && messages.length > 0 && (
           <ExportNoteButton conversationId={activeConversationId} />
         )}
+        </div>
       </div>
       <MessageList messages={messages} />
       <ChatInput onSend={handleSend} disabled={isStreaming} onStop={stopStreaming} isStreaming={isStreaming} />

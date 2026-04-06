@@ -39,7 +39,7 @@ export function ModelSelector({ value, onChange }: ModelSelectorProps) {
 
   if (models.length === 0) {
     return (
-      <div className="flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs text-muted-foreground">
+      <div className="paper-card flex items-center gap-1.5 rounded-full px-3 py-2 text-xs text-muted-foreground">
         未配置模型
       </div>
     );
@@ -49,13 +49,13 @@ export function ModelSelector({ value, onChange }: ModelSelectorProps) {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs hover:bg-accent transition-colors"
+        className="paper-card flex items-center gap-1.5 rounded-full px-3 py-2 text-xs transition-[transform,background-color] hover:-translate-y-0.5 hover:bg-accent"
       >
         <span className="max-w-[160px] truncate">{selected?.name || value}</span>
         <ChevronDown className={cn("h-3 w-3 transition-transform", open && "rotate-180")} />
       </button>
       {open && models.length > 0 && (
-        <div className="absolute top-full left-0 z-50 mt-1 min-w-[200px] rounded-md border border-border bg-popover p-1 shadow-lg">
+        <div className="paper-panel absolute left-0 top-full z-50 mt-2 min-w-[220px] rounded-[1.25rem] p-2">
           {models.map((model) => (
             <button
               key={model.id}
@@ -64,8 +64,8 @@ export function ModelSelector({ value, onChange }: ModelSelectorProps) {
                 setOpen(false);
               }}
               className={cn(
-                "flex w-full flex-col items-start rounded-sm px-2 py-1.5 text-left text-xs hover:bg-accent transition-colors",
-                model.id === value && "bg-accent"
+                "flex w-full flex-col items-start rounded-2xl px-3 py-2 text-left text-xs transition-colors hover:bg-accent/70",
+                model.id === value && "bg-accent/80"
               )}
             >
               <span className="font-medium">{model.name}</span>

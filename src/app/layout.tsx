@@ -1,7 +1,19 @@
 import type { Metadata } from "next";
-import { GeistSans } from "geist/font/sans";
-import { GeistMono } from "geist/font/mono";
+import { Cormorant_Garamond, Manrope } from "next/font/google";
 import "./globals.css";
+
+const display = Cormorant_Garamond({
+  subsets: ["latin"],
+  variable: "--font-ui-display",
+  weight: ["400", "500", "600"],
+  style: ["normal", "italic"],
+});
+
+const sans = Manrope({
+  subsets: ["latin"],
+  variable: "--font-ui-sans",
+  weight: ["400", "500", "600", "700"],
+});
 
 export const metadata: Metadata = {
   title: "Self-Agent",
@@ -16,9 +28,11 @@ export default function RootLayout({
   return (
     <html
       lang="zh-CN"
-      className={`${GeistSans.variable} ${GeistMono.variable} h-full antialiased`}
+      className={`${display.variable} ${sans.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col bg-background text-foreground selection:bg-primary/15 selection:text-foreground">
+        {children}
+      </body>
     </html>
   );
 }
