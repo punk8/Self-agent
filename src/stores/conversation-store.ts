@@ -17,6 +17,7 @@ interface Message {
 interface ConversationState {
   conversations: ConversationSummary[];
   activeConversationId: string | undefined;
+  selectedModel: string;
   messages: Message[];
   isStreaming: boolean;
   isLoading: boolean;
@@ -32,6 +33,7 @@ interface ConversationState {
   appendToAssistantMessage: (content: string) => void;
   finishAssistantMessage: (messageId: string) => void;
   setAssistantError: (error: string) => void;
+  setSelectedModel: (model: string) => void;
   setIsStreaming: (streaming: boolean) => void;
 
   generateAndSetTitle: (conversationId: string) => Promise<void>;
@@ -40,6 +42,7 @@ interface ConversationState {
 export const useConversationStore = create<ConversationState>((set, get) => ({
   conversations: [],
   activeConversationId: undefined,
+  selectedModel: "gpt-4o",
   messages: [],
   isStreaming: false,
   isLoading: false,
@@ -133,6 +136,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     });
   },
 
+  setSelectedModel: (model: string) => set({ selectedModel: model }),
   setIsStreaming: (streaming: boolean) => set({ isStreaming: streaming }),
 
   generateAndSetTitle: async (conversationId: string) => {

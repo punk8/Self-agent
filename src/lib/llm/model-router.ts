@@ -1,6 +1,7 @@
 import type { LLMProvider, ChatParams, StreamChunk, ModelInfo } from "./types";
 import { OpenAIProvider } from "./providers/openai-provider";
 import { OllamaProvider } from "./providers/ollama-provider";
+import { AnthropicProvider } from "./providers/anthropic-provider";
 
 class ModelRouter {
   private providers: Map<string, LLMProvider> = new Map();
@@ -9,6 +10,7 @@ class ModelRouter {
   constructor() {
     this.registerProvider(new OpenAIProvider());
     this.registerProvider(new OllamaProvider());
+    this.registerProvider(new AnthropicProvider());
   }
 
   private registerProvider(provider: LLMProvider) {

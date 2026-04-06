@@ -163,12 +163,14 @@ NEXTAUTH_URL=http://localhost:3000
 ## 开发路线图
 
 - [x] 项目架构设计
-- [ ] Phase 1: 基础骨架（项目初始化 + 数据模型 + 基本 UI）
-- [ ] Phase 2: LLM 集成 + 流式对话
-- [ ] Phase 3: 会话管理
-- [ ] Phase 4: 划句提问功能
-- [ ] Phase 5: 笔记 + Tag 系统
-- [ ] Phase 6: 用户认证 + 多模型支持 + Docker 部署
+- [x] Phase 1: 基础骨架（Next.js + Prisma + 响应式 UI）
+- [x] Phase 2: LLM 集成 + SSE 流式对话 + Markdown 渲染
+- [x] Phase 3: 会话管理（CRUD + 侧边栏 + 自动标题）
+- [x] Phase 4: 划句提问（SelectableText + FloatingToolbar + InlineAnnotation）
+- [x] Phase 5: 笔记 + Tag 系统（自动导出 + LLM 生成摘要/Tag）
+- [x] Phase 6: 多模型支持（OpenAI + Anthropic + Ollama）+ Docker 部署
+- [ ] 用户认证（NextAuth.js）
+- [ ] PWA 支持（离线缓存 + 添加到主屏）
 
 ## License
 

@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import { MessageList } from "@/components/chat/MessageList";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { ExportNoteButton } from "@/components/chat/ExportNoteButton";
+import { ModelSelector } from "@/components/chat/ModelSelector";
 import { useConversationStore } from "@/stores/conversation-store";
 import { sendMessage } from "@/lib/api-client";
 
@@ -12,6 +13,7 @@ export default function ChatPage() {
     messages,
     isStreaming,
     activeConversationId,
+    selectedModel,
     addUserMessage,
     startAssistantMessage,
     appendToAssistantMessage,
@@ -19,6 +21,7 @@ export default function ChatPage() {
     setAssistantError,
     setIsStreaming,
     setActiveConversationId,
+    setSelectedModel,
     loadConversations,
     generateAndSetTitle,
   } = useConversationStore();
@@ -35,7 +38,7 @@ export default function ChatPage() {
         const stream = sendMessage({
           conversationId: activeConversationId,
           content,
-          model: "gpt-4o",
+          model: selectedModel,
         });
 
         for await (const event of stream) {
@@ -66,6 +69,7 @@ export default function ChatPage() {
     [
       isStreaming,
       activeConversationId,
+      selectedModel,
       addUserMessage,
       startAssistantMessage,
       appendToAssistantMessage,
@@ -80,11 +84,12 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      {activeConversationId && messages.length > 0 && (
-        <div className="flex items-center justify-end border-b border-border px-4 py-1.5">
+      <div className="flex items-center justify-between border-b border-border px-4 py-1.5">
+        <ModelSelector value={selectedModel} onChange={setSelectedModel} />
+        {activeConversationId && messages.length > 0 && (
           <ExportNoteButton conversationId={activeConversationId} />
-        </div>
-      )}
+        )}
+      </div>
       <MessageList messages={messages} />
       <ChatInput onSend={handleSend} disabled={isStreaming} />
     </div>

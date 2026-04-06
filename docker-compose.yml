@@ -1,0 +1,25 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - app-data:/app/data
+    env_file: .env
+    environment:
+      - DATABASE_URL=file:/app/data/self-agent.db
+    restart: unless-stopped
+
+  # Optional: Ollama for local LLM models
+  # Uncomment to enable local model support
+  # ollama:
+  #   image: ollama/ollama
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama-data:/root/.ollama
+  #   restart: unless-stopped
+
+volumes:
+  app-data:
+  # ollama-data:
