@@ -1,26 +1,33 @@
 "use client";
 
+import { useEffect, use } from "react";
 import { useCallback } from "react";
 import { MessageList } from "@/components/chat/MessageList";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { useConversationStore } from "@/stores/conversation-store";
 import { sendMessage } from "@/lib/api-client";
 
-export default function ChatPage() {
+export default function ConversationPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const {
     messages,
     isStreaming,
     activeConversationId,
+    selectConversation,
     addUserMessage,
     startAssistantMessage,
     appendToAssistantMessage,
     finishAssistantMessage,
     setAssistantError,
     setIsStreaming,
-    setActiveConversationId,
     loadConversations,
-    generateAndSetTitle,
   } = useConversationStore();
+
+  useEffect(() => {
+    if (id !== activeConversationId) {
+      selectConversation(id);
+    }
+  }, [id, activeConversationId, selectConversation]);
 
   const handleSend = useCallback(
     async (content: string) => {
@@ -32,9 +39,8 @@ export default function ChatPage() {
 
       try {
         const stream = sendMessage({
-          conversationId: activeConversationId,
+          conversationId: id,
           content,
-          model: "gpt-4o",
         });
 
         for await (const event of stream) {
@@ -43,13 +49,8 @@ export default function ChatPage() {
               appendToAssistantMessage(event.content || "");
               break;
             case "done":
-              if (event.conversationId && !activeConversationId) {
-                setActiveConversationId(event.conversationId);
-                // Generate title for new conversations
-                generateAndSetTitle(event.conversationId);
-                loadConversations();
-              }
               finishAssistantMessage(event.messageId || "");
+              loadConversations();
               break;
             case "error":
               setAssistantError(event.error || "Unknown error");
@@ -63,17 +64,15 @@ export default function ChatPage() {
       }
     },
     [
+      id,
       isStreaming,
-      activeConversationId,
       addUserMessage,
       startAssistantMessage,
       appendToAssistantMessage,
       finishAssistantMessage,
       setAssistantError,
       setIsStreaming,
-      setActiveConversationId,
       loadConversations,
-      generateAndSetTitle,
     ]
   );
 

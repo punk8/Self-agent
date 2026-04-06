@@ -1,19 +1,36 @@
 "use client";
 
+import { useEffect } from "react";
+import { useConversationStore } from "@/stores/conversation-store";
 import { ConversationList } from "@/components/sidebar/ConversationList";
 
 export function ChatSidebar() {
-  // TODO: Replace with real data from API
-  const conversations = [
-    { id: "1", title: "关于 React 的讨论", updatedAt: new Date().toISOString() },
-    { id: "2", title: "Python 学习笔记", updatedAt: new Date().toISOString() },
-  ];
+  const {
+    conversations,
+    activeConversationId,
+    loadConversations,
+    selectConversation,
+    startNewConversation,
+    removeConversation,
+  } = useConversationStore();
+
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
+
+  const items = conversations.map((c) => ({
+    id: c.id,
+    title: c.title || "新对话",
+    updatedAt: c.updatedAt,
+  }));
 
   return (
     <ConversationList
-      conversations={conversations}
-      onSelect={(id) => console.log("select", id)}
-      onNew={() => console.log("new conversation")}
+      conversations={items}
+      activeId={activeConversationId}
+      onSelect={selectConversation}
+      onNew={startNewConversation}
+      onDelete={removeConversation}
     />
   );
 }
