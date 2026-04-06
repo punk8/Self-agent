@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { saveSettings, type CustomProviderData, type UserSettingsData } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Eye, EyeOff, Check, Loader2, Zap, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Check, Loader2, Zap, Plus, Trash2, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-type BuiltinProviderId = "openai" | "anthropic" | "ollama";
+const PROVIDER_DRAWER_ANIMATION_MS = 260;
 
 interface ProviderEntry {
   id: string;
@@ -58,6 +58,10 @@ export default function SettingsPage({ initialData }: { initialData: UserSetting
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [isProviderRailCollapsed, setIsProviderRailCollapsed] = useState(false);
+  const [isProviderDrawerMounted, setIsProviderDrawerMounted] = useState(false);
+  const [isProviderDrawerVisible, setIsProviderDrawerVisible] = useState(false);
+  const drawerCloseTimerRef = useRef<number | null>(null);
 
   const current = providers.find((p) => p.id === selectedId);
 
@@ -75,6 +79,46 @@ export default function SettingsPage({ initialData }: { initialData: UserSetting
     }));
   }, []);
 
+  const renderProviderList = (compact = false, closeOnSelect = false) => (
+    <>
+      {providers.map((p) => (
+        <button
+          key={p.id}
+          onClick={() => {
+            setSelectedId(p.id);
+            setShowKey(false);
+            setTestResult(null);
+            if (closeOnSelect) {
+              closeProviderDrawer();
+            }
+          }}
+          className={cn(
+            "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-left transition-colors",
+            selectedId === p.id ? "bg-accent border border-primary/30" : "hover:bg-accent/50",
+            compact && "justify-center px-2"
+          )}
+          title={p.name}
+        >
+          <span className="text-lg shrink-0">{p.icon}</span>
+          {!compact && (
+            <>
+              <span className="flex-1 truncate font-medium">{p.name}</span>
+              {p.type === "custom" && (
+                <span className="text-[10px] rounded bg-muted px-1 py-0.5 text-muted-foreground">CUSTOM</span>
+              )}
+              <span
+                className={cn(
+                  "h-2.5 w-2.5 rounded-full shrink-0",
+                  p.tested ? "bg-green-500" : "bg-muted-foreground/30"
+                )}
+              />
+            </>
+          )}
+        </button>
+      ))}
+    </>
+  );
+
   function addCustomProvider() {
     const id = `custom-${Date.now()}`;
     const entry: ProviderEntry = {
@@ -86,6 +130,43 @@ export default function SettingsPage({ initialData }: { initialData: UserSetting
     setTestResult(null);
     setShowKey(false);
   }
+
+  const openProviderDrawer = useCallback(() => {
+    if (drawerCloseTimerRef.current) {
+      window.clearTimeout(drawerCloseTimerRef.current);
+      drawerCloseTimerRef.current = null;
+    }
+    setIsProviderDrawerMounted(true);
+  }, []);
+
+  const closeProviderDrawer = useCallback(() => {
+    setIsProviderDrawerVisible(false);
+    if (drawerCloseTimerRef.current) {
+      window.clearTimeout(drawerCloseTimerRef.current);
+    }
+    drawerCloseTimerRef.current = window.setTimeout(() => {
+      setIsProviderDrawerMounted(false);
+      drawerCloseTimerRef.current = null;
+    }, PROVIDER_DRAWER_ANIMATION_MS);
+  }, []);
+
+  useEffect(() => {
+    if (!isProviderDrawerMounted) return;
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      setIsProviderDrawerVisible(true);
+    });
+
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [isProviderDrawerMounted]);
+
+  useEffect(() => {
+    return () => {
+      if (drawerCloseTimerRef.current) {
+        window.clearTimeout(drawerCloseTimerRef.current);
+      }
+    };
+  }, []);
 
   function removeCustomProvider(id: string) {
     setProviders((prev) => prev.filter((p) => p.id !== id));
@@ -173,11 +254,71 @@ export default function SettingsPage({ initialData }: { initialData: UserSetting
 
   return (
     <div className="flex h-screen flex-col">
+      {isProviderDrawerMounted && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div
+            className={cn(
+              "absolute inset-0 bg-[#16160f]/30 backdrop-blur-sm transition-opacity duration-300",
+              isProviderDrawerVisible ? "opacity-100" : "opacity-0"
+            )}
+            onClick={closeProviderDrawer}
+          />
+          <aside
+            className={cn(
+              "paper-panel absolute inset-y-3 left-3 w-[18rem] overflow-hidden rounded-[1.75rem] transition-[transform,opacity] duration-300 ease-out",
+              isProviderDrawerVisible ? "translate-x-0 opacity-100" : "-translate-x-[105%] opacity-0"
+            )}
+          >
+            <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
+              <div>
+                <p className="text-[0.64rem] uppercase tracking-[0.22em] text-muted-foreground">Providers</p>
+                <h2 className="font-display text-2xl leading-none">模型列表</h2>
+              </div>
+              <Button variant="ghost" size="icon" onClick={closeProviderDrawer}>
+                <PanelLeftClose className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="scrollbar-thin h-[calc(100%-140px)] overflow-y-auto p-3 space-y-1">
+              {renderProviderList(false, true)}
+            </div>
+            <div className="border-t border-border p-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full gap-2"
+                onClick={() => {
+                  addCustomProvider();
+                  closeProviderDrawer();
+                }}
+              >
+                <Plus className="h-3.5 w-3.5" /> 添加 Custom Provider
+              </Button>
+            </div>
+          </aside>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-3 border-b border-border px-4 py-3">
         <Link href="/">
           <Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
         </Link>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="hidden md:inline-flex"
+          onClick={() => setIsProviderRailCollapsed((v) => !v)}
+        >
+          {isProviderRailCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden"
+          onClick={openProviderDrawer}
+        >
+          <PanelLeftOpen className="h-4 w-4" />
+        </Button>
         <h1 className="text-lg font-semibold">模型配置</h1>
         <div className="ml-auto flex items-center gap-2">
           {saved && <span className="text-sm text-green-600">已保存</span>}
@@ -189,56 +330,28 @@ export default function SettingsPage({ initialData }: { initialData: UserSetting
       </div>
 
       <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
-        {/* Mobile: horizontal scroll tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto border-b border-border px-3 py-2 md:hidden">
-          {providers.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => { setSelectedId(p.id); setShowKey(false); setTestResult(null); }}
-              className={cn(
-                "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-                selectedId === p.id ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"
-              )}
-            >
-              <span>{p.icon}</span>
-              <span className="max-w-[80px] truncate">{p.name}</span>
-              <span className={cn("h-2 w-2 rounded-full", p.tested ? "bg-green-500" : "bg-muted-foreground/30")} />
-            </button>
-          ))}
+        {/* Mobile provider summary */}
+        <div className="border-b border-border px-3 py-2 md:hidden">
           <button
-            onClick={addCustomProvider}
-            className="flex shrink-0 items-center gap-1 rounded-full border border-dashed border-border px-3 py-1.5 text-xs text-muted-foreground"
+            onClick={openProviderDrawer}
+            className="inline-flex items-center rounded-full border border-input bg-background px-3 py-1.5 text-xs text-muted-foreground"
           >
-            <Plus className="h-3 w-3" /> 添加
+            当前: {current?.name ?? "Provider"} · 点此切换
           </button>
         </div>
 
         {/* Desktop: sidebar */}
-        <aside className="hidden w-56 shrink-0 border-r border-border overflow-y-auto md:flex md:flex-col">
+        <aside
+          className={cn(
+            "hidden shrink-0 border-r border-border overflow-y-auto transition-[width] duration-300 md:flex md:flex-col",
+            isProviderRailCollapsed ? "w-[5.5rem]" : "w-56"
+          )}
+        >
           <div className="flex-1 p-2 space-y-1">
-            {providers.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => { setSelectedId(p.id); setShowKey(false); setTestResult(null); }}
-                className={cn(
-                  "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors text-left",
-                  selectedId === p.id ? "bg-accent border border-primary/30" : "hover:bg-accent/50"
-                )}
-              >
-                <span className="text-lg">{p.icon}</span>
-                <span className="flex-1 truncate font-medium">{p.name}</span>
-                {p.type === "custom" && (
-                  <span className="text-[10px] rounded bg-muted px-1 py-0.5 text-muted-foreground">CUSTOM</span>
-                )}
-                <span className={cn(
-                  "h-2.5 w-2.5 rounded-full shrink-0",
-                  p.tested ? "bg-green-500" : "bg-muted-foreground/30"
-                )} />
-              </button>
-            ))}
+            {renderProviderList(isProviderRailCollapsed)}
           </div>
           <div className="border-t border-border p-2">
-            <Button variant="outline" size="sm" className="w-full gap-2" onClick={addCustomProvider}>
+            <Button variant="outline" size="sm" className={cn("gap-2", isProviderRailCollapsed ? "w-auto px-2" : "w-full")} onClick={addCustomProvider}>
               <Plus className="h-3.5 w-3.5" /> 添加 Custom Provider
             </Button>
           </div>

@@ -31,16 +31,26 @@ export function MessageBubble({ id, role, content, isStreaming }: MessageBubbleP
       </div>
       <div
         className={cn(
-          "paper-card min-w-0 max-w-3xl rounded-[1.75rem] px-5 py-4 md:px-6",
+          "min-w-0 max-w-3xl rounded-[1.75rem] px-5 py-4 md:px-6",
           isUser
-            ? "order-1 bg-primary text-primary-foreground shadow-[0_24px_50px_rgba(35,35,22,0.18)]"
-            : "bg-[linear-gradient(180deg,rgba(255,252,247,0.92),rgba(245,237,224,0.9))]"
+            ? "order-1 border border-primary/10 bg-primary text-primary-foreground shadow-[0_24px_50px_rgba(35,35,22,0.18)]"
+            : "paper-card bg-[linear-gradient(180deg,rgba(255,252,247,0.92),rgba(245,237,224,0.9))]"
         )}
       >
-        <p className={cn("mb-2 text-[0.68rem] uppercase tracking-[0.24em]", isUser ? "text-primary-foreground/72" : "text-muted-foreground")}>
+        <p
+          className={cn(
+            "mb-2 text-[0.68rem] uppercase tracking-[0.24em]",
+            isUser ? "text-primary-foreground/78" : "text-muted-foreground"
+          )}
+        >
           {isUser ? "You" : "Self-Agent"}
         </p>
-        <div className="break-words text-[0.95rem] leading-7">
+        <div
+          className={cn(
+            "break-words text-[0.95rem] leading-7",
+            isUser ? "text-primary-foreground" : "text-foreground"
+          )}
+        >
           {isUser ? (
             <p className="whitespace-pre-wrap">{content}</p>
           ) : (

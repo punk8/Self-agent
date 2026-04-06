@@ -1,18 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { fetchNotes, fetchTags, deleteNote, type NoteSummary, type TagWithCount } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { FileText, Tag, Trash2, ExternalLink, Search, ArrowLeft } from "lucide-react";
+import { FileText, Tag, Trash2, ExternalLink, Search, ArrowLeft, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import Link from "next/link";
+
+const DRAWER_ANIMATION_MS = 260;
 
 export default function NotesPage() {
   const [notes, setNotes] = useState<NoteSummary[]>([]);
   const [tags, setTags] = useState<TagWithCount[]>([]);
   const [selectedTagId, setSelectedTagId] = useState<string | undefined>();
   const [search, setSearch] = useState("");
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isDrawerMounted, setIsDrawerMounted] = useState(false);
+  const [isDrawerVisible, setIsDrawerVisible] = useState(false);
+  const drawerCloseTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,37 +52,143 @@ export default function NotesPage() {
     setTags(tagsData);
   };
 
-  return (
-    <div className="flex h-screen bg-transparent">
-      {/* Tag sidebar */}
-      <aside className="paper-panel hidden w-64 shrink-0 rounded-l-[2rem] border-r-0 md:block">
-        <div className="p-5">
-          <p className="text-[0.68rem] uppercase tracking-[0.24em] text-muted-foreground">Library</p>
-          <h3 className="mb-4 font-display text-[2rem] leading-none">Tags</h3>
-          <button
-            onClick={() => setSelectedTagId(undefined)}
-            className={cn(
-              "mb-1 flex w-full items-center gap-2 rounded-[1.2rem] px-3 py-2.5 text-sm transition-colors hover:bg-accent/70",
-              !selectedTagId && "paper-card font-medium"
-            )}
-          >
-            <FileText className="h-3.5 w-3.5" />
-            全部笔记
-          </button>
-          {tags.map((tag) => (
-            <button
-              key={tag.id}
-            onClick={() => setSelectedTagId(tag.id)}
-            className={cn(
-              "mb-1 flex w-full items-center gap-2 rounded-[1.2rem] px-3 py-2.5 text-sm transition-colors hover:bg-accent/70",
-              selectedTagId === tag.id && "paper-card font-medium"
-            )}
-          >
-              <Tag className="h-3.5 w-3.5" />
+  useEffect(() => {
+    if (!isDrawerMounted) return;
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      setIsDrawerVisible(true);
+    });
+
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [isDrawerMounted]);
+
+  useEffect(() => {
+    return () => {
+      if (drawerCloseTimerRef.current) {
+        window.clearTimeout(drawerCloseTimerRef.current);
+      }
+    };
+  }, []);
+
+  const openDrawer = () => {
+    if (drawerCloseTimerRef.current) {
+      window.clearTimeout(drawerCloseTimerRef.current);
+      drawerCloseTimerRef.current = null;
+    }
+    setIsDrawerMounted(true);
+  };
+
+  const closeDrawer = () => {
+    setIsDrawerVisible(false);
+    if (drawerCloseTimerRef.current) {
+      window.clearTimeout(drawerCloseTimerRef.current);
+    }
+    drawerCloseTimerRef.current = window.setTimeout(() => {
+      setIsDrawerMounted(false);
+      drawerCloseTimerRef.current = null;
+    }, DRAWER_ANIMATION_MS);
+  };
+
+  const renderTagList = (compact = false, closeOnSelect = false) => (
+    <>
+      <button
+        onClick={() => {
+          setSelectedTagId(undefined);
+          if (closeOnSelect) {
+            closeDrawer();
+          }
+        }}
+        className={cn(
+          "mb-1 flex w-full items-center gap-2 rounded-[1.2rem] px-3 py-2.5 text-sm transition-colors hover:bg-accent/70",
+          !selectedTagId && "paper-card font-medium",
+          compact && "justify-center px-2"
+        )}
+        title="全部笔记"
+      >
+        <FileText className="h-3.5 w-3.5 shrink-0" />
+        {!compact && "全部笔记"}
+      </button>
+      {tags.map((tag) => (
+        <button
+          key={tag.id}
+          onClick={() => {
+            setSelectedTagId(tag.id);
+            if (closeOnSelect) {
+              closeDrawer();
+            }
+          }}
+          className={cn(
+            "mb-1 flex w-full items-center gap-2 rounded-[1.2rem] px-3 py-2.5 text-sm transition-colors hover:bg-accent/70",
+            selectedTagId === tag.id && "paper-card font-medium",
+            compact && "justify-center px-2"
+          )}
+          title={tag.name}
+        >
+          <Tag className="h-3.5 w-3.5 shrink-0" />
+          {!compact && (
+            <>
               <span className="flex-1 truncate text-left">{tag.name}</span>
               <span className="text-xs text-muted-foreground">{tag._count.notes}</span>
-            </button>
-          ))}
+            </>
+          )}
+        </button>
+      ))}
+    </>
+  );
+
+  return (
+    <div className="flex h-screen bg-transparent">
+      {isDrawerMounted && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div
+            className={cn(
+              "absolute inset-0 bg-[#16160f]/30 backdrop-blur-sm transition-opacity duration-300",
+              isDrawerVisible ? "opacity-100" : "opacity-0"
+            )}
+            onClick={closeDrawer}
+          />
+          <aside
+            className={cn(
+              "paper-panel absolute inset-y-3 left-3 w-[18rem] overflow-hidden rounded-[1.75rem] transition-[transform,opacity] duration-300 ease-out",
+              isDrawerVisible ? "translate-x-0 opacity-100" : "-translate-x-[105%] opacity-0"
+            )}
+          >
+            <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
+              <div>
+                <p className="text-[0.64rem] uppercase tracking-[0.22em] text-muted-foreground">Library</p>
+                <h3 className="font-display text-2xl leading-none">Tags</h3>
+              </div>
+              <Button variant="ghost" size="icon" onClick={closeDrawer}>
+                <PanelLeftClose className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="scrollbar-thin h-[calc(100%-72px)] overflow-y-auto p-4">
+              {renderTagList(false, true)}
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {/* Tag sidebar */}
+      <aside
+        className={cn(
+          "paper-panel hidden shrink-0 rounded-l-[2rem] border-r-0 transition-[width] duration-300 md:block",
+          isSidebarCollapsed ? "w-[5.5rem]" : "w-64"
+        )}
+      >
+        <div className="p-5">
+          <div className={cn("mb-4 flex items-start justify-between", isSidebarCollapsed && "justify-center")}>
+            {!isSidebarCollapsed && (
+              <div>
+                <p className="text-[0.68rem] uppercase tracking-[0.24em] text-muted-foreground">Library</p>
+                <h3 className="font-display text-[2rem] leading-none">Tags</h3>
+              </div>
+            )}
+            <Button variant="ghost" size="icon" onClick={() => setIsSidebarCollapsed((v) => !v)}>
+              {isSidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            </Button>
+          </div>
+          {renderTagList(isSidebarCollapsed)}
         </div>
       </aside>
 
@@ -89,6 +201,14 @@ export default function NotesPage() {
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="shrink-0 md:hidden"
+              onClick={openDrawer}
+            >
+              <PanelLeftOpen className="h-4 w-4" />
+            </Button>
             <div className="shrink-0">
               <p className="text-[0.68rem] uppercase tracking-[0.22em] text-muted-foreground">Archive</p>
               <h1 className="font-display text-[2rem] leading-none">笔记</h1>
@@ -104,32 +224,16 @@ export default function NotesPage() {
               />
             </div>
           </div>
-          {/* Mobile tag filter */}
-          {tags.length > 0 && (
-            <div className="mt-2 flex gap-1.5 overflow-x-auto md:hidden">
-              <button
-                onClick={() => setSelectedTagId(undefined)}
-                className={cn(
-                  "shrink-0 rounded-full border px-2.5 py-1 text-xs transition-colors",
-                  !selectedTagId ? "border-primary bg-primary/10 text-primary font-medium" : "border-border text-muted-foreground"
-                )}
-              >
-                全部
-              </button>
-              {tags.map((tag) => (
-                <button
-                  key={tag.id}
-                  onClick={() => setSelectedTagId(tag.id)}
-                  className={cn(
-                    "shrink-0 rounded-full border px-2.5 py-1 text-xs transition-colors",
-                    selectedTagId === tag.id ? "border-primary bg-primary/10 text-primary font-medium" : "border-border text-muted-foreground"
-                  )}
-                >
-                  {tag.name}
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="mt-2 md:hidden">
+            <button
+              onClick={openDrawer}
+              className="inline-flex items-center rounded-full border border-input bg-background/70 px-3 py-1.5 text-xs text-muted-foreground shadow-[var(--paper-shadow-soft)]"
+            >
+              {selectedTagId
+                ? `标签: ${tags.find((t) => t.id === selectedTagId)?.name ?? "已选择"}`
+                : "全部标签"}
+            </button>
+          </div>
         </div>
 
         <ScrollArea className="scrollbar-thin h-[calc(100vh-96px)]">
