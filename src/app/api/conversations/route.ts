@@ -1,9 +1,8 @@
 import { NextRequest } from "next/server";
-import { prisma, ensureDefaultUser } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { getCurrentUserId } from "@/lib/get-user";
 
 export async function GET(req: NextRequest) {
-  await ensureDefaultUser();
   const userId = await getCurrentUserId();
   const searchParams = req.nextUrl.searchParams;
   const page = parseInt(searchParams.get("page") || "1");
@@ -33,7 +32,6 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  await ensureDefaultUser();
   const userId = await getCurrentUserId();
   const body = await req.json();
   const { model = "gpt-4o", title } = body;

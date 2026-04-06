@@ -49,7 +49,7 @@ export class CustomProvider implements LLMProvider {
         model: params.model,
         messages,
         temperature: params.temperature ?? 0.7,
-        max_tokens: params.maxTokens ?? 2048,
+        max_tokens: params.maxTokens ?? 8192,
         stream: true,
       }),
     });
@@ -79,7 +79,7 @@ export class CustomProvider implements LLMProvider {
       },
       body: JSON.stringify({
         model: params.model,
-        max_tokens: params.maxTokens ?? 2048,
+        max_tokens: params.maxTokens ?? 8192,
         ...(systemContent ? { system: systemContent } : {}),
         messages,
         temperature: params.temperature ?? 0.7,

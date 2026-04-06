@@ -67,25 +67,51 @@ export default function NotesPage() {
 
       {/* Notes list */}
       <main className="flex-1 overflow-hidden">
-        <div className="border-b border-border p-4">
-          <div className="flex items-center gap-3">
+        <div className="border-b border-border p-3 md:p-4">
+          <div className="flex items-center gap-2 md:gap-3">
             <Link href="/">
               <Button variant="ghost" size="icon" className="shrink-0">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
-            <h1 className="text-lg font-semibold">笔记</h1>
-            <div className="relative flex-1 max-w-sm">
+            <h1 className="shrink-0 text-lg font-semibold">笔记</h1>
+            <div className="relative flex-1 min-w-0">
               <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="搜索笔记..."
+                placeholder="搜索..."
                 className="h-9 w-full rounded-md border border-input bg-background pl-8 pr-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
           </div>
+          {/* Mobile tag filter */}
+          {tags.length > 0 && (
+            <div className="mt-2 flex gap-1.5 overflow-x-auto md:hidden">
+              <button
+                onClick={() => setSelectedTagId(undefined)}
+                className={cn(
+                  "shrink-0 rounded-full border px-2.5 py-1 text-xs transition-colors",
+                  !selectedTagId ? "border-primary bg-primary/10 text-primary font-medium" : "border-border text-muted-foreground"
+                )}
+              >
+                全部
+              </button>
+              {tags.map((tag) => (
+                <button
+                  key={tag.id}
+                  onClick={() => setSelectedTagId(tag.id)}
+                  className={cn(
+                    "shrink-0 rounded-full border px-2.5 py-1 text-xs transition-colors",
+                    selectedTagId === tag.id ? "border-primary bg-primary/10 text-primary font-medium" : "border-border text-muted-foreground"
+                  )}
+                >
+                  {tag.name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <ScrollArea className="h-[calc(100vh-73px)]">

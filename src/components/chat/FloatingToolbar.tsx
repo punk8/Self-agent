@@ -93,24 +93,26 @@ export function FloatingToolbar() {
     }
   };
 
-  // Position the toolbar above the selection
-  const top = rect.top - 50 + window.scrollY;
-  const left = rect.left + rect.width / 2 - 60;
+  // Position the toolbar above the selection, clamped to viewport
+  const viewportWidth = typeof window !== "undefined" ? window.innerWidth : 375;
+  const toolbarWidth = showInput ? 300 : 120;
+  const rawLeft = rect.left + rect.width / 2 - toolbarWidth / 2;
+  const clampedLeft = Math.max(8, Math.min(rawLeft, viewportWidth - toolbarWidth - 8));
 
   return (
     <div
       className="fixed z-50 flex flex-col items-center gap-2"
-      style={{ top: `${Math.max(8, rect.top - (showInput ? 120 : 50))}px`, left: `${Math.max(8, left)}px` }}
+      style={{ top: `${Math.max(8, rect.top - (showInput ? 120 : 50))}px`, left: `${clampedLeft}px` }}
     >
       {showInput ? (
-        <div className="flex items-center gap-1 rounded-lg border border-border bg-popover p-2 shadow-lg">
+        <div className="flex items-center gap-1 rounded-lg border border-border bg-popover p-2 shadow-lg max-w-[calc(100vw-16px)]">
           <input
             type="text"
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleAsk()}
             placeholder="输入你的问题..."
-            className="h-8 w-56 rounded border-none bg-transparent px-2 text-sm focus:outline-none"
+            className="h-8 w-40 flex-1 rounded border-none bg-transparent px-2 text-sm focus:outline-none md:w-56"
             autoFocus
           />
           <Button size="icon" variant="ghost" onClick={handleAsk} disabled={!question.trim()}>

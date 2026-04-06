@@ -2,13 +2,12 @@ import { NextRequest } from "next/server";
 import { chat, getModelInfo } from "@/lib/llm/model-router";
 import { getUserApiKeys } from "@/lib/llm/get-api-keys";
 import { buildContext } from "@/lib/llm/context-manager";
-import { prisma, ensureDefaultUser } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { getCurrentUserId } from "@/lib/get-user";
 import type { ChatMessage } from "@/lib/llm/types";
 
 export async function POST(req: NextRequest) {
   try {
-    await ensureDefaultUser();
     const userId = await getCurrentUserId();
     const keys = await getUserApiKeys();
     const body = await req.json();

@@ -1,9 +1,8 @@
 import { NextRequest } from "next/server";
-import { prisma, ensureDefaultUser } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { getCurrentUserId } from "@/lib/get-user";
 
 export async function GET() {
-  await ensureDefaultUser();
   const userId = await getCurrentUserId();
 
   const settings = await prisma.userSettings.findUnique({
@@ -56,7 +55,6 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
-  await ensureDefaultUser();
   const userId = await getCurrentUserId();
   const body = await req.json();
 

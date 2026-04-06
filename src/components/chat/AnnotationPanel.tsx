@@ -31,7 +31,7 @@ export function AnnotationPanel() {
       />
 
       {/* Panel */}
-      <div className="fixed right-0 top-0 z-50 h-full w-[400px] max-w-[90vw] border-l border-border bg-background shadow-xl animate-in slide-in-from-right duration-200">
+      <div className="fixed right-0 top-0 z-50 h-full w-full border-l border-border bg-background shadow-xl animate-in slide-in-from-right duration-200 md:w-[400px] md:max-w-[90vw]">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div className="flex items-center gap-2">

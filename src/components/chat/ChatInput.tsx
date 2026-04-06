@@ -41,7 +41,7 @@ export function ChatInput({ onSend, onStop, disabled, isStreaming }: ChatInputPr
   };
 
   return (
-    <div className="border-t border-border bg-background p-4">
+    <div className="border-t border-border bg-background p-2 md:p-4">
       <div className="mx-auto flex max-w-3xl items-end gap-2">
         <Textarea
           ref={textareaRef}

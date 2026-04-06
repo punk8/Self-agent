@@ -13,10 +13,10 @@ export function MessageBubble({ id, role, content, isStreaming }: MessageBubbleP
   const isUser = role === "user";
 
   return (
-    <div className={cn("flex gap-3 px-4 py-6", isUser ? "bg-transparent" : "bg-muted/50")}>
+    <div className={cn("flex gap-2 px-3 py-4 md:gap-3 md:px-4 md:py-6", isUser ? "bg-transparent" : "bg-muted/50")}>
       <div
         className={cn(
-          "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
+          "hidden h-7 w-7 shrink-0 items-center justify-center rounded-full md:flex md:h-8 md:w-8",
           isUser ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
         )}
       >
