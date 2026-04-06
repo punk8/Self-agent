@@ -27,11 +27,16 @@ const sql = execSync(
   { encoding: "utf-8" }
 );
 
-// Split into individual statements
-const statements = sql
+// Remove comment lines, then split into individual statements
+const cleanSql = sql
+  .split("\n")
+  .filter((line) => !line.trimStart().startsWith("--"))
+  .join("\n");
+
+const statements = cleanSql
   .split(";")
   .map((s) => s.trim())
-  .filter((s) => s.length > 0 && !s.startsWith("--"))
+  .filter((s) => s.length > 0)
   .map((s) => s + ";");
 
 console.log(`Found ${statements.length} SQL statements to execute.\n`);
