@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useConversationStore } from "@/stores/conversation-store";
 import { ConversationList } from "@/components/sidebar/ConversationList";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Settings } from "lucide-react";
 import Link from "next/link";
 
 export function ChatSidebar() {
@@ -37,13 +37,20 @@ export function ChatSidebar() {
           onDelete={removeConversation}
         />
       </div>
-      <div className="border-t border-sidebar-border p-3">
+      <div className="border-t border-sidebar-border p-3 space-y-1">
         <Link
           href="/notes"
           className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
           <BookOpen className="h-4 w-4" />
           笔记
+        </Link>
+        <Link
+          href="/settings"
+          className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <Settings className="h-4 w-4" />
+          设置
         </Link>
       </div>
     </div>

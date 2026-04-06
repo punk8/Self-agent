@@ -1,9 +1,11 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
-import { modelRouter } from "@/lib/llm/model-router";
+import { chat } from "@/lib/llm/model-router";
+import { getUserApiKeys } from "@/lib/llm/get-api-keys";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const keys = await getUserApiKeys();
 
   const conversation = await prisma.conversation.findUnique({
     where: { id },
@@ -31,7 +33,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   let title = "新对话";
 
   try {
-    const gen = modelRouter.chat({
+    const gen = chat({
       model: conversation.model,
       messages: [
         {
@@ -41,7 +43,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       ],
       temperature: 0.3,
       maxTokens: 50,
-    });
+    }, keys);
 
     let result = "";
     for await (const chunk of gen) {

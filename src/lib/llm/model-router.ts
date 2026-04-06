@@ -2,65 +2,75 @@ import type { LLMProvider, ChatParams, StreamChunk, ModelInfo } from "./types";
 import { OpenAIProvider } from "./providers/openai-provider";
 import { OllamaProvider } from "./providers/ollama-provider";
 import { AnthropicProvider } from "./providers/anthropic-provider";
+import type { UserApiKeys } from "./get-api-keys";
 
-class ModelRouter {
-  private providers: Map<string, LLMProvider> = new Map();
-  private modelToProvider: Map<string, string> = new Map();
-
-  constructor() {
-    this.registerProvider(new OpenAIProvider());
-    this.registerProvider(new OllamaProvider());
-    this.registerProvider(new AnthropicProvider());
-  }
-
-  private registerProvider(provider: LLMProvider) {
-    this.providers.set(provider.id, provider);
-    for (const model of provider.models) {
-      this.modelToProvider.set(model.id, provider.id);
-    }
-  }
-
-  async getAvailableModels(): Promise<ModelInfo[]> {
-    const models: ModelInfo[] = [];
-    for (const provider of this.providers.values()) {
-      if (await provider.isAvailable()) {
-        models.push(...provider.models);
-      }
-    }
-    return models;
-  }
-
-  async *chat(params: ChatParams): AsyncGenerator<StreamChunk> {
-    const providerId = this.modelToProvider.get(params.model);
-    if (!providerId) {
-      yield { type: "error", error: `Unknown model: ${params.model}` };
-      return;
-    }
-
-    const provider = this.providers.get(providerId);
-    if (!provider) {
-      yield { type: "error", error: `Provider not found: ${providerId}` };
-      return;
-    }
-
-    if (!(await provider.isAvailable())) {
-      yield { type: "error", error: `Provider ${provider.name} is not available` };
-      return;
-    }
-
-    yield* provider.chat(params);
-  }
-
-  getModelInfo(modelId: string): ModelInfo | undefined {
-    for (const provider of this.providers.values()) {
-      const model = provider.models.find((m) => m.id === modelId);
-      if (model) return model;
-    }
-    return undefined;
-  }
+function createProviders(keys: UserApiKeys): Map<string, LLMProvider> {
+  const providers = new Map<string, LLMProvider>();
+  const openai = new OpenAIProvider(keys.openaiApiKey, keys.openaiBaseUrl);
+  const ollama = new OllamaProvider(keys.ollamaBaseUrl);
+  const anthropic = new AnthropicProvider(keys.anthropicApiKey);
+  providers.set(openai.id, openai);
+  providers.set(ollama.id, ollama);
+  providers.set(anthropic.id, anthropic);
+  return providers;
 }
 
-// Singleton
-const globalForRouter = globalThis as unknown as { modelRouter: ModelRouter | undefined };
-export const modelRouter = globalForRouter.modelRouter ?? new ModelRouter();
-if (process.env.NODE_ENV !== "production") globalForRouter.modelRouter = modelRouter;
+function buildModelMap(providers: Map<string, LLMProvider>): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const provider of providers.values()) {
+    for (const model of provider.models) {
+      map.set(model.id, provider.id);
+    }
+  }
+  return map;
+}
+
+// Static model list (for UI display, doesn't need keys)
+const staticProviders = [new OpenAIProvider(), new OllamaProvider(), new AnthropicProvider()];
+const staticModelMap = new Map<string, string>();
+for (const p of staticProviders) {
+  for (const m of p.models) staticModelMap.set(m.id, p.id);
+}
+
+export async function getAvailableModels(keys: UserApiKeys): Promise<ModelInfo[]> {
+  const providers = createProviders(keys);
+  const models: ModelInfo[] = [];
+  for (const provider of providers.values()) {
+    if (await provider.isAvailable()) {
+      models.push(...provider.models);
+    }
+  }
+  return models;
+}
+
+export async function* chat(params: ChatParams, keys: UserApiKeys): AsyncGenerator<StreamChunk> {
+  const providers = createProviders(keys);
+  const modelMap = buildModelMap(providers);
+
+  const providerId = modelMap.get(params.model);
+  if (!providerId) {
+    yield { type: "error", error: `Unknown model: ${params.model}` };
+    return;
+  }
+
+  const provider = providers.get(providerId);
+  if (!provider) {
+    yield { type: "error", error: `Provider not found: ${providerId}` };
+    return;
+  }
+
+  if (!(await provider.isAvailable())) {
+    yield { type: "error", error: `Provider ${provider.name} is not available. Please configure your API key in Settings.` };
+    return;
+  }
+
+  yield* provider.chat(params);
+}
+
+export function getModelInfo(modelId: string): ModelInfo | undefined {
+  for (const p of staticProviders) {
+    const model = p.models.find((m) => m.id === modelId);
+    if (model) return model;
+  }
+  return undefined;
+}

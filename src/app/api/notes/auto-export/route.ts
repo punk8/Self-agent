@@ -1,10 +1,12 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUserId } from "@/lib/get-user";
-import { modelRouter } from "@/lib/llm/model-router";
+import { chat } from "@/lib/llm/model-router";
+import { getUserApiKeys } from "@/lib/llm/get-api-keys";
 
 export async function POST(req: NextRequest) {
   const userId = await getCurrentUserId();
+  const keys = await getUserApiKeys();
   const body = await req.json();
   const { conversationId } = body;
 
@@ -37,7 +39,7 @@ export async function POST(req: NextRequest) {
   const title = conversation.title || "导出笔记";
 
   try {
-    const gen = modelRouter.chat({
+    const gen = chat({
       model: conversation.model || "gpt-4o",
       messages: [
         {
@@ -54,7 +56,7 @@ ${noteContent.slice(0, 3000)}`,
       ],
       temperature: 0.3,
       maxTokens: 300,
-    });
+    }, keys);
 
     let result = "";
     for await (const chunk of gen) {

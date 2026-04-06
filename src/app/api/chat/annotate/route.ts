@@ -1,9 +1,11 @@
 import { NextRequest } from "next/server";
-import { modelRouter } from "@/lib/llm/model-router";
+import { chat } from "@/lib/llm/model-router";
+import { getUserApiKeys } from "@/lib/llm/get-api-keys";
 import { prisma } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
   try {
+    const keys = await getUserApiKeys();
     const body = await req.json();
     const { messageId, selectedText, question, startOffset, endOffset } = body;
 
@@ -22,7 +24,7 @@ export async function POST(req: NextRequest) {
           include: {
             messages: {
               orderBy: { createdAt: "asc" },
-              take: 10, // last 10 messages for context
+              take: 10,
             },
           },
         },
@@ -56,12 +58,12 @@ export async function POST(req: NextRequest) {
         let fullAnswer = "";
 
         try {
-          const gen = modelRouter.chat({
+          const gen = chat({
             model,
             messages: annotationPrompt,
             temperature: 0.5,
             maxTokens: 1024,
-          });
+          }, keys);
 
           for await (const chunk of gen) {
             if (chunk.type === "token" && chunk.content) {

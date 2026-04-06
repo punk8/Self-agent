@@ -176,3 +176,31 @@ export async function createTag(name: string, color?: string) {
 export async function deleteTag(id: string) {
   await fetch(`/api/tags/${id}`, { method: "DELETE" });
 }
+
+// --- Settings ---
+
+export interface UserSettingsData {
+  openaiApiKey: string;
+  openaiBaseUrl: string;
+  anthropicApiKey: string;
+  ollamaBaseUrl: string;
+  hasOpenaiKey: boolean;
+  hasAnthropicKey: boolean;
+}
+
+export async function fetchSettings(): Promise<UserSettingsData> {
+  const res = await fetch("/api/settings");
+  if (!res.ok) {
+    return { openaiApiKey: "", openaiBaseUrl: "", anthropicApiKey: "", ollamaBaseUrl: "", hasOpenaiKey: false, hasAnthropicKey: false };
+  }
+  return res.json();
+}
+
+export async function saveSettings(data: Partial<Pick<UserSettingsData, "openaiApiKey" | "openaiBaseUrl" | "anthropicApiKey" | "ollamaBaseUrl">>) {
+  const res = await fetch("/api/settings", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}

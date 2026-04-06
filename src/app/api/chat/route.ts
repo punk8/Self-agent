@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
-import { modelRouter } from "@/lib/llm/model-router";
+import { chat, getModelInfo } from "@/lib/llm/model-router";
+import { getUserApiKeys } from "@/lib/llm/get-api-keys";
 import { buildContext } from "@/lib/llm/context-manager";
 import { prisma, ensureDefaultUser } from "@/lib/db";
 import { getCurrentUserId } from "@/lib/get-user";
@@ -9,6 +10,7 @@ export async function POST(req: NextRequest) {
   try {
     await ensureDefaultUser();
     const userId = await getCurrentUserId();
+    const keys = await getUserApiKeys();
     const body = await req.json();
     const { conversationId, content, model = "gpt-4o" } = body;
 
@@ -43,7 +45,7 @@ export async function POST(req: NextRequest) {
       orderBy: { createdAt: "asc" },
     });
 
-    const modelInfo = modelRouter.getModelInfo(model);
+    const modelInfo = getModelInfo(model);
     const messages: ChatMessage[] = history.map((m) => ({
       role: m.role === "USER" ? "user" as const : m.role === "ASSISTANT" ? "assistant" as const : "system" as const,
       content: m.content,
@@ -64,7 +66,7 @@ export async function POST(req: NextRequest) {
         let completionTokens = 0;
 
         try {
-          const gen = modelRouter.chat({ model, messages: contextMessages });
+          const gen = chat({ model, messages: contextMessages }, keys);
           for await (const chunk of gen) {
             switch (chunk.type) {
               case "token":
