@@ -5,7 +5,7 @@ import { fetchNotes, fetchTags, deleteNote, exportConversationToNote, type NoteS
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { FileText, Tag, Trash2, ExternalLink, Search } from "lucide-react";
+import { FileText, Tag, Trash2, ExternalLink, Search, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 export default function NotesPage() {
@@ -69,6 +69,11 @@ export default function NotesPage() {
       <main className="flex-1 overflow-hidden">
         <div className="border-b border-border p-4">
           <div className="flex items-center gap-3">
+            <Link href="/">
+              <Button variant="ghost" size="icon" className="shrink-0">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </Link>
             <h1 className="text-lg font-semibold">笔记</h1>
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

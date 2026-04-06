@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageBubble } from "./MessageBubble";
 import { FloatingToolbar } from "./FloatingToolbar";
+import { AnnotationPanel } from "./AnnotationPanel";
 
 export interface Message {
   id: string;
@@ -49,6 +50,7 @@ export function MessageList({ messages }: MessageListProps) {
       </div>
       <div ref={bottomRef} />
       <FloatingToolbar />
+      <AnnotationPanel />
     </ScrollArea>
   );
 }

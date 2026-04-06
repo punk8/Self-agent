@@ -21,6 +21,7 @@ interface AnnotationState {
     endOffset: number;
     rect: DOMRect;
   } | null;
+  activeAnnotationId: string | null; // currently viewing in panel
 
   setActiveSelection: (selection: AnnotationState["activeSelection"]) => void;
   clearSelection: () => void;
@@ -31,12 +32,15 @@ interface AnnotationState {
   removeAnnotation: (messageId: string, annotationId: string) => void;
   toggleAnnotation: (messageId: string, annotationId: string) => void;
 
+  setActiveAnnotationId: (id: string | null) => void;
   getAnnotationsForMessage: (messageId: string) => Annotation[];
+  getActiveAnnotation: () => Annotation | null;
 }
 
 export const useAnnotationStore = create<AnnotationState>((set, get) => ({
   annotations: new Map(),
   activeSelection: null,
+  activeAnnotationId: null,
 
   setActiveSelection: (selection) => set({ activeSelection: selection }),
   clearSelection: () => set({ activeSelection: null }),
@@ -54,7 +58,7 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
       const map = new Map(state.annotations);
       const existing = map.get(annotation.messageId) || [];
       map.set(annotation.messageId, [...existing, annotation]);
-      return { annotations: map };
+      return { annotations: map, activeAnnotationId: annotation.id };
     });
   },
 
@@ -66,6 +70,10 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
         messageId,
         existing.map((a) => (a.id === annotationId ? { ...a, ...updates } : a))
       );
+      // If the annotation ID changed (temp -> persisted), update activeAnnotationId
+      if (updates.id && state.activeAnnotationId === annotationId) {
+        return { annotations: map, activeAnnotationId: updates.id };
+      }
       return { annotations: map };
     });
   },
@@ -78,7 +86,8 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
         messageId,
         existing.filter((a) => a.id !== annotationId)
       );
-      return { annotations: map };
+      const newActiveId = state.activeAnnotationId === annotationId ? null : state.activeAnnotationId;
+      return { annotations: map, activeAnnotationId: newActiveId };
     });
   },
 
@@ -96,7 +105,19 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
     });
   },
 
+  setActiveAnnotationId: (id) => set({ activeAnnotationId: id }),
+
   getAnnotationsForMessage: (messageId) => {
     return get().annotations.get(messageId) || [];
+  },
+
+  getActiveAnnotation: () => {
+    const { activeAnnotationId, annotations } = get();
+    if (!activeAnnotationId) return null;
+    for (const annots of annotations.values()) {
+      const found = annots.find((a) => a.id === activeAnnotationId);
+      if (found) return found;
+    }
+    return null;
   },
 }));

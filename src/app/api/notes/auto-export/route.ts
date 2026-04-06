@@ -25,37 +25,45 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Conversation not found" }, { status: 404 });
   }
 
-  // Build note content from conversation
-  const noteContent = conversation.messages
+  // Build the raw dialogue for LLM analysis
+  const rawDialogue = conversation.messages
     .map((m) => {
-      const role = m.role === "USER" ? "**用户**" : "**AI**";
-      return `${role}:\n\n${m.content}`;
+      const role = m.role === "USER" ? "用户" : "AI";
+      return `${role}: ${m.content}`;
     })
-    .join("\n\n---\n\n");
+    .join("\n\n");
 
-  // Generate summary and tags via LLM
+  // Generate title, summary, key points, and tags via LLM
+  let title = conversation.title || "学习笔记";
   let summary = "";
+  let keyPoints: string[] = [];
   let suggestedTags: string[] = [];
-  const title = conversation.title || "导出笔记";
+
+  const model = conversation.model || "gpt-4o";
 
   try {
     const gen = chat({
-      model: conversation.model || "gpt-4o",
+      model,
       messages: [
         {
           role: "user",
-          content: `Analyze this conversation and provide:
-1. A brief summary (2-3 sentences, in the conversation's language)
-2. 3-5 relevant tags (single words or short phrases, in the conversation's language)
+          content: `你是一个学习笔记助手。请分析以下对话，生成结构化的学习笔记元数据。
 
-Format your response as JSON: {"summary": "...", "tags": ["tag1", "tag2", ...]}
+要求：
+1. title: 一个简洁准确的笔记标题（不超过20字）
+2. summary: 2-3句话的核心摘要，概括对话的主要内容和结论
+3. keyPoints: 3-5个关键知识点，每个用一句话概括
+4. tags: 3-5个分类标签（短词）
 
-Conversation:
-${noteContent.slice(0, 3000)}`,
+请严格使用JSON格式返回：
+{"title": "...", "summary": "...", "keyPoints": ["...", "..."], "tags": ["...", "..."]}
+
+对话内容：
+${rawDialogue.slice(0, 4000)}`,
         },
       ],
       temperature: 0.3,
-      maxTokens: 300,
+      maxTokens: 500,
     }, keys);
 
     let result = "";
@@ -65,16 +73,25 @@ ${noteContent.slice(0, 3000)}`,
       }
     }
 
-    // Parse JSON from LLM response
     const jsonMatch = result.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
+      title = parsed.title || title;
       summary = parsed.summary || "";
+      keyPoints = (parsed.keyPoints || []).slice(0, 5);
       suggestedTags = (parsed.tags || []).slice(0, 5);
     }
   } catch {
-    // Fallback - no summary or tags
+    // Fallback - use conversation title
   }
+
+  // Build structured note content
+  const noteContent = buildNoteContent({
+    title,
+    summary,
+    keyPoints,
+    messages: conversation.messages,
+  });
 
   // Create or find tags
   const tagRecords = await Promise.all(
@@ -118,4 +135,51 @@ ${noteContent.slice(0, 3000)}`,
   }
 
   return Response.json(note, { status: 201 });
+}
+
+function buildNoteContent({
+  title,
+  summary,
+  keyPoints,
+  messages,
+}: {
+  title: string;
+  summary: string;
+  keyPoints: string[];
+  messages: Array<{ role: string; content: string }>;
+}) {
+  const sections: string[] = [];
+
+  // Header
+  sections.push(`# ${title}\n`);
+
+  // Summary
+  if (summary) {
+    sections.push(`## 摘要\n\n${summary}\n`);
+  }
+
+  // Key points
+  if (keyPoints.length > 0) {
+    sections.push(`## 关键知识点\n\n${keyPoints.map((p) => `- ${p}`).join("\n")}\n`);
+  }
+
+  // Dialogue content - formatted as Q&A pairs
+  sections.push(`## 对话详情\n`);
+
+  let currentQ = "";
+  for (const m of messages) {
+    if (m.role === "USER") {
+      currentQ = m.content;
+    } else if (m.role === "ASSISTANT") {
+      if (currentQ) {
+        sections.push(`### Q: ${currentQ.length > 80 ? currentQ.slice(0, 80) + "..." : currentQ}\n`);
+        sections.push(m.content + "\n");
+        currentQ = "";
+      } else {
+        sections.push(m.content + "\n");
+      }
+    }
+  }
+
+  return sections.join("\n");
 }

@@ -16,7 +16,13 @@ export function ModelSelector({ value, onChange }: ModelSelectorProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetchModels().then(setModels);
+    fetchModels().then((m) => {
+      setModels(m);
+      // Auto-select first available model if current selection is not in the list
+      if (m.length > 0 && !m.find((mod) => mod.id === value)) {
+        onChange(m[0].id);
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -31,17 +37,25 @@ export function ModelSelector({ value, onChange }: ModelSelectorProps) {
 
   const selected = models.find((m) => m.id === value);
 
+  if (models.length === 0) {
+    return (
+      <div className="flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs text-muted-foreground">
+        未配置模型
+      </div>
+    );
+  }
+
   return (
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
         className="flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs hover:bg-accent transition-colors"
       >
-        <span className="max-w-[120px] truncate">{selected?.name || value}</span>
+        <span className="max-w-[160px] truncate">{selected?.name || value}</span>
         <ChevronDown className={cn("h-3 w-3 transition-transform", open && "rotate-180")} />
       </button>
       {open && models.length > 0 && (
-        <div className="absolute top-full left-0 z-50 mt-1 min-w-[180px] rounded-md border border-border bg-popover p-1 shadow-lg">
+        <div className="absolute top-full left-0 z-50 mt-1 min-w-[200px] rounded-md border border-border bg-popover p-1 shadow-lg">
           {models.map((model) => (
             <button
               key={model.id}

@@ -2,6 +2,7 @@ import type { LLMProvider, ChatParams, StreamChunk, ModelInfo } from "./types";
 import { OpenAIProvider } from "./providers/openai-provider";
 import { OllamaProvider } from "./providers/ollama-provider";
 import { AnthropicProvider } from "./providers/anthropic-provider";
+import { CustomProvider } from "./providers/custom-provider";
 import type { UserApiKeys } from "./get-api-keys";
 
 function createProviders(keys: UserApiKeys): Map<string, LLMProvider> {
@@ -12,6 +13,19 @@ function createProviders(keys: UserApiKeys): Map<string, LLMProvider> {
   providers.set(openai.id, openai);
   providers.set(ollama.id, ollama);
   providers.set(anthropic.id, anthropic);
+
+  // Add all custom providers
+  for (const cp of keys.customProviders) {
+    const custom = new CustomProvider(cp.apiKey, cp.baseUrl, cp.modelId, cp.modelName, cp.apiFormat);
+    // Use unique ID per custom provider to avoid collisions
+    custom.id = cp.id;
+    custom.name = cp.name || "Custom LLM";
+    if (custom.models.length > 0) {
+      custom.models[0].provider = cp.id;
+    }
+    providers.set(cp.id, custom);
+  }
+
   return providers;
 }
 
@@ -34,8 +48,12 @@ for (const p of staticProviders) {
 
 export async function getAvailableModels(keys: UserApiKeys): Promise<ModelInfo[]> {
   const providers = createProviders(keys);
+  const tested = new Set(keys.testedProviders);
   const models: ModelInfo[] = [];
+
   for (const provider of providers.values()) {
+    // Only include providers that passed testing
+    if (!tested.has(provider.id)) continue;
     if (await provider.isAvailable()) {
       models.push(...provider.models);
     }

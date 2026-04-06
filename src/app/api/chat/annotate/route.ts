@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
   try {
     const keys = await getUserApiKeys();
     const body = await req.json();
-    const { messageId, selectedText, question, startOffset, endOffset } = body;
+    const { messageId, selectedText, question, startOffset, endOffset, model: requestModel } = body;
 
     if (!messageId || !selectedText || !question) {
       return Response.json(
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: "Message not found" }, { status: 404 });
     }
 
-    const model = message.conversation.model || "gpt-4o";
+    const model = requestModel || message.conversation.model || "gpt-4o";
 
     // Build context: conversation history + selected text + question
     const contextMessages = message.conversation.messages.map((m) => ({

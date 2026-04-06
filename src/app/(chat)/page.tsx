@@ -22,6 +22,8 @@ export default function ChatPage() {
     setIsStreaming,
     setActiveConversationId,
     setSelectedModel,
+    setAbortController,
+    stopStreaming,
     loadConversations,
     generateAndSetTitle,
   } = useConversationStore();
@@ -29,6 +31,9 @@ export default function ChatPage() {
   const handleSend = useCallback(
     async (content: string) => {
       if (isStreaming) return;
+
+      const controller = new AbortController();
+      setAbortController(controller);
 
       addUserMessage(content);
       startAssistantMessage();
@@ -39,6 +44,7 @@ export default function ChatPage() {
           conversationId: activeConversationId,
           content,
           model: selectedModel,
+          signal: controller.signal,
         });
 
         for await (const event of stream) {
@@ -49,7 +55,6 @@ export default function ChatPage() {
             case "done":
               if (event.conversationId && !activeConversationId) {
                 setActiveConversationId(event.conversationId);
-                // Generate title for new conversations
                 generateAndSetTitle(event.conversationId);
                 loadConversations();
               }
@@ -61,9 +66,14 @@ export default function ChatPage() {
           }
         }
       } catch (err) {
-        setAssistantError(err instanceof Error ? err.message : "Unknown error");
+        if (err instanceof DOMException && err.name === "AbortError") {
+          // User stopped the stream - just finalize
+        } else {
+          setAssistantError(err instanceof Error ? err.message : "Unknown error");
+        }
       } finally {
         setIsStreaming(false);
+        setAbortController(null);
       }
     },
     [
@@ -77,6 +87,7 @@ export default function ChatPage() {
       setAssistantError,
       setIsStreaming,
       setActiveConversationId,
+      setAbortController,
       loadConversations,
       generateAndSetTitle,
     ]
@@ -91,7 +102,7 @@ export default function ChatPage() {
         )}
       </div>
       <MessageList messages={messages} />
-      <ChatInput onSend={handleSend} disabled={isStreaming} />
+      <ChatInput onSend={handleSend} disabled={isStreaming} onStop={stopStreaming} isStreaming={isStreaming} />
     </div>
   );
 }

@@ -6,15 +6,18 @@ interface SendMessageParams {
   conversationId?: string;
   content: string;
   model?: string;
+  signal?: AbortSignal;
 }
 
 export async function* sendMessage(
   params: SendMessageParams
 ): AsyncGenerator<SSEEvent> {
+  const { signal, ...body } = params;
   const response = await fetch("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(params),
+    body: JSON.stringify(body),
+    signal,
   });
 
   if (!response.ok) {
@@ -179,11 +182,23 @@ export async function deleteTag(id: string) {
 
 // --- Settings ---
 
+export interface CustomProviderData {
+  id: string;
+  name: string;
+  baseUrl: string;
+  apiKey: string;
+  modelId: string;
+  modelName: string;
+  apiFormat: string;
+}
+
 export interface UserSettingsData {
   openaiApiKey: string;
   openaiBaseUrl: string;
   anthropicApiKey: string;
   ollamaBaseUrl: string;
+  customProviders: CustomProviderData[];
+  testedProviders: string[];
   hasOpenaiKey: boolean;
   hasAnthropicKey: boolean;
 }
@@ -191,12 +206,12 @@ export interface UserSettingsData {
 export async function fetchSettings(): Promise<UserSettingsData> {
   const res = await fetch("/api/settings");
   if (!res.ok) {
-    return { openaiApiKey: "", openaiBaseUrl: "", anthropicApiKey: "", ollamaBaseUrl: "", hasOpenaiKey: false, hasAnthropicKey: false };
+    return { openaiApiKey: "", openaiBaseUrl: "", anthropicApiKey: "", ollamaBaseUrl: "", customProviders: [], testedProviders: [], hasOpenaiKey: false, hasAnthropicKey: false };
   }
   return res.json();
 }
 
-export async function saveSettings(data: Partial<Pick<UserSettingsData, "openaiApiKey" | "openaiBaseUrl" | "anthropicApiKey" | "ollamaBaseUrl">>) {
+export async function saveSettings(data: Record<string, unknown>) {
   const res = await fetch("/api/settings", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },

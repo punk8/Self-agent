@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useAnnotationStore } from "@/stores/annotation-store";
+import { useConversationStore } from "@/stores/conversation-store";
 import { Button } from "@/components/ui/button";
 import { MessageSquareQuote, X, SendHorizontal, Loader2 } from "lucide-react";
 import { parseSSEStream } from "@/lib/sse-parser";
@@ -9,6 +10,7 @@ import { parseSSEStream } from "@/lib/sse-parser";
 export function FloatingToolbar() {
   const { activeSelection, clearSelection, addAnnotation, updateAnnotation } =
     useAnnotationStore();
+  const selectedModel = useConversationStore((s) => s.selectedModel);
   const [showInput, setShowInput] = useState(false);
   const [question, setQuestion] = useState("");
   const [isAsking, setIsAsking] = useState(false);
@@ -49,6 +51,7 @@ export function FloatingToolbar() {
           question: question.trim(),
           startOffset,
           endOffset,
+          model: selectedModel,
         }),
       });
 

@@ -27,8 +27,15 @@ model UserSettings {
   openaiApiKey   String?
   openaiBaseUrl  String?
   anthropicApiKey String?
-  ollamaBaseUrl  String?
-  createdAt      DateTime @default(now())
+  ollamaBaseUrl    String?
+  customApiKey     String?
+  customBaseUrl    String?
+  customModelId    String?
+  customModelName  String?
+  customApiFormat  String?  // "openai" or "anthropic"
+  customProviders  String?  // JSON array of custom provider configs
+  testedProviders  String?  // JSON array of provider IDs that passed testing
+  createdAt        DateTime @default(now())
   updatedAt      DateTime @updatedAt
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

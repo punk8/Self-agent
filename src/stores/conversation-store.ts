@@ -21,6 +21,7 @@ interface ConversationState {
   messages: Message[];
   isStreaming: boolean;
   isLoading: boolean;
+  abortController: AbortController | null;
 
   loadConversations: () => Promise<void>;
   selectConversation: (id: string) => Promise<void>;
@@ -35,6 +36,8 @@ interface ConversationState {
   setAssistantError: (error: string) => void;
   setSelectedModel: (model: string) => void;
   setIsStreaming: (streaming: boolean) => void;
+  setAbortController: (controller: AbortController | null) => void;
+  stopStreaming: () => void;
 
   generateAndSetTitle: (conversationId: string) => Promise<void>;
 }
@@ -46,6 +49,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
   messages: [],
   isStreaming: false,
   isLoading: false,
+  abortController: null,
 
   loadConversations: async () => {
     const conversations = await fetchConversations();
@@ -138,6 +142,24 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
 
   setSelectedModel: (model: string) => set({ selectedModel: model }),
   setIsStreaming: (streaming: boolean) => set({ isStreaming: streaming }),
+  setAbortController: (controller: AbortController | null) => set({ abortController: controller }),
+  stopStreaming: () => {
+    const { abortController } = get();
+    if (abortController) {
+      abortController.abort();
+      set({ abortController: null, isStreaming: false });
+      // Finalize the last assistant message
+      const { messages } = get();
+      const last = messages[messages.length - 1];
+      if (last?.role === "assistant" && last.isStreaming) {
+        set({
+          messages: messages.map((m, i) =>
+            i === messages.length - 1 ? { ...m, isStreaming: false } : m
+          ),
+        });
+      }
+    }
+  },
 
   generateAndSetTitle: async (conversationId: string) => {
     const title = await generateTitle(conversationId);
