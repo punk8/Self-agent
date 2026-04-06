@@ -5,10 +5,18 @@ import { fetchNotes, fetchTags, deleteNote, type NoteSummary, type TagWithCount 
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { FileText, Tag, Trash2, ExternalLink, Search, ArrowLeft, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { FileText, MessageSquare, Tag, Trash2, ExternalLink, Search, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import Link from "next/link";
 
 const DRAWER_ANIMATION_MS = 260;
+
+function CompactHint({ label }: { label: string }) {
+  return (
+    <span className="pointer-events-none absolute left-[calc(100%+0.7rem)] top-1/2 z-30 hidden -translate-y-1/2 rounded-full border border-border/70 bg-background/95 px-3 py-1.5 text-xs font-medium text-foreground shadow-[var(--paper-shadow-soft)] backdrop-blur group-hover:block">
+      {label}
+    </span>
+  );
+}
 
 export default function NotesPage() {
   const [notes, setNotes] = useState<NoteSummary[]>([]);
@@ -99,14 +107,17 @@ export default function NotesPage() {
           }
         }}
         className={cn(
-          "mb-1 flex w-full items-center gap-2 rounded-[1.2rem] px-3 py-2.5 text-sm transition-colors hover:bg-accent/70",
-          !selectedTagId && "paper-card font-medium",
-          compact && "justify-center px-2"
+          "paper-card group mb-2 flex w-full items-center rounded-[1.35rem] text-sm transition-[transform,background-color,box-shadow] duration-300 hover:-translate-y-0.5 hover:bg-accent/70 hover:shadow-[var(--paper-shadow-soft)]",
+          !selectedTagId && "bg-accent/85 shadow-[var(--paper-shadow-soft)]",
+          compact ? "relative justify-center px-0 py-3" : "gap-3 px-4 py-3"
         )}
         title="全部笔记"
       >
-        <FileText className="h-3.5 w-3.5 shrink-0" />
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[rgba(249,191,101,0.16)] text-foreground">
+          <FileText className="h-4 w-4 text-muted-foreground" />
+        </div>
         {!compact && "全部笔记"}
+        {compact && <CompactHint label="全部笔记" />}
       </button>
       {tags.map((tag) => (
         <button
@@ -118,26 +129,29 @@ export default function NotesPage() {
             }
           }}
           className={cn(
-            "mb-1 flex w-full items-center gap-2 rounded-[1.2rem] px-3 py-2.5 text-sm transition-colors hover:bg-accent/70",
-            selectedTagId === tag.id && "paper-card font-medium",
-            compact && "justify-center px-2"
+            "group mb-2 flex w-full items-center rounded-[1.35rem] text-sm transition-[transform,background-color,box-shadow] duration-300 hover:-translate-y-0.5 hover:bg-accent/70 hover:shadow-[var(--paper-shadow-soft)]",
+            selectedTagId === tag.id ? "paper-card bg-accent/85 shadow-[var(--paper-shadow-soft)]" : "story-link text-muted-foreground hover:text-foreground",
+            compact ? "relative justify-center px-0 py-3" : "gap-3 px-4 py-3"
           )}
           title={tag.name}
         >
-          <Tag className="h-3.5 w-3.5 shrink-0" />
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[rgba(249,191,101,0.16)] text-foreground">
+            <Tag className="h-4 w-4 text-muted-foreground" />
+          </div>
           {!compact && (
             <>
-              <span className="flex-1 truncate text-left">{tag.name}</span>
+              <span className="flex-1 truncate text-left font-medium">{tag.name}</span>
               <span className="text-xs text-muted-foreground">{tag._count.notes}</span>
             </>
           )}
+          {compact && <CompactHint label={tag.name} />}
         </button>
       ))}
     </>
   );
 
   return (
-    <div className="flex h-screen bg-transparent">
+    <div className="flex h-screen overflow-hidden bg-transparent p-2 md:p-4">
       {isDrawerMounted && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div
@@ -153,17 +167,34 @@ export default function NotesPage() {
               isDrawerVisible ? "translate-x-0 opacity-100" : "-translate-x-[105%] opacity-0"
             )}
           >
-            <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
-              <div>
-                <p className="text-[0.64rem] uppercase tracking-[0.22em] text-muted-foreground">Library</p>
-                <h3 className="font-display text-2xl leading-none">Tags</h3>
+            <div className="px-4 pb-3 pt-5">
+              <div className="mb-5 flex items-start justify-between">
+                <div>
+                  <p className="text-[0.68rem] uppercase tracking-[0.24em] text-muted-foreground">Library</p>
+                  <h3 className="font-display text-[2rem] leading-none">Tags</h3>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={closeDrawer}
+                  className="h-11 w-11 rounded-full border border-border/60 bg-[rgba(249,191,101,0.12)] shadow-[var(--paper-shadow-soft)] hover:bg-[rgba(249,191,101,0.2)]"
+                >
+                  <PanelLeftClose className="h-4 w-4" />
+                </Button>
               </div>
-              <Button variant="ghost" size="icon" onClick={closeDrawer}>
-                <PanelLeftClose className="h-4 w-4" />
-              </Button>
             </div>
-            <div className="scrollbar-thin h-[calc(100%-72px)] overflow-y-auto p-4">
+            <div className="scrollbar-thin h-[calc(100%-124px)] overflow-y-auto px-3 pb-4">
               {renderTagList(false, true)}
+            </div>
+            <div className="border-t border-sidebar-border/80 px-4 py-4">
+              <div>
+                <p className="text-[0.68rem] uppercase tracking-[0.22em] text-muted-foreground">Filter</p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {selectedTagId
+                    ? `当前: ${tags.find((t) => t.id === selectedTagId)?.name ?? "已选择标签"}`
+                    : "当前: 全部标签"}
+                </p>
+              </div>
             </div>
           </aside>
         </div>
@@ -172,35 +203,105 @@ export default function NotesPage() {
       {/* Tag sidebar */}
       <aside
         className={cn(
-          "paper-panel hidden shrink-0 rounded-l-[2rem] border-r-0 transition-[width] duration-300 md:block",
-          isSidebarCollapsed ? "w-[5.5rem]" : "w-64"
+          "paper-panel hidden shrink-0 overflow-visible rounded-[2rem] border-r-0 transition-[width] duration-300 md:block",
+          isSidebarCollapsed ? "w-[5.5rem]" : "w-[19.5rem]"
         )}
       >
-        <div className="p-5">
-          <div className={cn("mb-4 flex items-start justify-between", isSidebarCollapsed && "justify-center")}>
-            {!isSidebarCollapsed && (
-              <div>
-                <p className="text-[0.68rem] uppercase tracking-[0.24em] text-muted-foreground">Library</p>
-                <h3 className="font-display text-[2rem] leading-none">Tags</h3>
+        <div className="flex h-full flex-col">
+          <div className={cn("px-4 pb-3 pt-5", isSidebarCollapsed && "px-3 pt-5")}>
+            {isSidebarCollapsed ? (
+              <div className="mb-4 flex justify-center">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsSidebarCollapsed((v) => !v)}
+                  className="bg-background/50 backdrop-blur"
+                  title={isSidebarCollapsed ? "展开标签栏" : "收起标签栏"}
+                >
+                  {isSidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+                </Button>
+              </div>
+            ) : (
+              <div className="relative mb-5">
+                <div>
+                  <p className="text-[0.68rem] uppercase tracking-[0.24em] text-muted-foreground">Library</p>
+                  <h3 className="font-display text-[2rem] leading-none">Tags</h3>
+                </div>
+                <div className="absolute right-0 top-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsSidebarCollapsed((v) => !v)}
+                    className="bg-background/50 backdrop-blur"
+                    title="收起标签栏"
+                  >
+                    <PanelLeftClose className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             )}
-            <Button variant="ghost" size="icon" onClick={() => setIsSidebarCollapsed((v) => !v)}>
-              {isSidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-            </Button>
           </div>
-          {renderTagList(isSidebarCollapsed)}
+          <div
+            className={cn(
+              "scrollbar-thin flex-1 overflow-y-auto pb-4",
+              isSidebarCollapsed ? "overflow-x-visible px-2" : "px-3"
+            )}
+          >
+            {renderTagList(isSidebarCollapsed)}
+          </div>
+          <div className={cn("border-t border-sidebar-border/80 px-4 py-4", isSidebarCollapsed && "px-3")}>
+            {!isSidebarCollapsed ? (
+              <>
+                <p className="text-[0.68rem] uppercase tracking-[0.22em] text-muted-foreground">Library</p>
+                <Link
+                  href="/"
+                  className="story-link mt-2 flex items-center gap-2 rounded-2xl px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent/65 hover:text-foreground"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Chat
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTagId(undefined)}
+                  title="查看全部笔记"
+                  className="story-link mt-1 flex items-center gap-2 rounded-2xl px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent/65 hover:text-foreground"
+                >
+                  <FileText className="h-4 w-4" />
+                  全部笔记
+                </button>
+                <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                  用标签把聊天沉淀成一个更安静的资料库。
+                </p>
+              </>
+            ) : (
+              <div className="space-y-1">
+                <Link
+                  href="/"
+                  title="返回聊天"
+                  className="story-link group relative flex w-full justify-center rounded-2xl px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent/65 hover:text-foreground"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  <CompactHint label="Chat" />
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTagId(undefined)}
+                  title="查看全部笔记"
+                  className="story-link group relative flex w-full justify-center rounded-2xl px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent/65 hover:text-foreground"
+                >
+                  <FileText className="h-4 w-4" />
+                  <CompactHint label="全部笔记" />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </aside>
 
       {/* Notes list */}
-      <main className="flex-1 overflow-hidden rounded-r-[2rem]">
+      <main className="paper-panel flex-1 overflow-hidden rounded-[2rem] md:ml-4">
         <div className="border-b border-border/70 p-4 md:p-6">
           <div className="flex items-center gap-2 md:gap-3">
-            <Link href="/">
-              <Button variant="ghost" size="icon" className="shrink-0">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </Link>
             <Button
               variant="ghost"
               size="icon"
@@ -236,7 +337,7 @@ export default function NotesPage() {
           </div>
         </div>
 
-        <ScrollArea className="scrollbar-thin h-[calc(100vh-96px)]">
+        <ScrollArea className="scrollbar-thin h-[calc(100vh-112px)] md:h-[calc(100vh-144px)]">
           <div className="p-4 md:p-6 space-y-4">
             {notes.length === 0 && (
               <div className="paper-card rounded-[1.8rem] px-6 py-16 text-center">

@@ -9,6 +9,14 @@ import { cn } from "@/lib/utils";
 
 const PROVIDER_DRAWER_ANIMATION_MS = 260;
 
+function CompactHint({ label }: { label: string }) {
+  return (
+    <span className="pointer-events-none absolute left-[calc(100%+0.7rem)] top-1/2 z-30 hidden -translate-y-1/2 rounded-full border border-border/70 bg-background/95 px-3 py-1.5 text-xs font-medium text-foreground shadow-[var(--paper-shadow-soft)] backdrop-blur group-hover:block">
+      {label}
+    </span>
+  );
+}
+
 interface ProviderEntry {
   id: string;
   type: "builtin" | "custom";
@@ -93,19 +101,31 @@ export default function SettingsPage({ initialData }: { initialData: UserSetting
             }
           }}
           className={cn(
-            "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-left transition-colors",
-            selectedId === p.id ? "bg-accent border border-primary/30" : "hover:bg-accent/50",
-            compact && "justify-center px-2"
+            "group mb-2 flex w-full items-center rounded-[1.35rem] text-sm text-left transition-[transform,background-color,box-shadow] duration-300 hover:-translate-y-0.5 hover:bg-accent/70 hover:shadow-[var(--paper-shadow-soft)]",
+            selectedId === p.id ? "paper-card bg-accent/85 shadow-[var(--paper-shadow-soft)]" : "story-link text-muted-foreground hover:text-foreground",
+            compact ? "relative justify-center px-0 py-3" : "gap-3 px-4 py-3"
           )}
           title={p.name}
         >
-          <span className="text-lg shrink-0">{p.icon}</span>
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[rgba(249,191,101,0.16)] text-lg">
+            <span>{p.icon}</span>
+          </div>
           {!compact && (
             <>
-              <span className="flex-1 truncate font-medium">{p.name}</span>
-              {p.type === "custom" && (
-                <span className="text-[10px] rounded bg-muted px-1 py-0.5 text-muted-foreground">CUSTOM</span>
-              )}
+              <div className="min-w-0 flex-1">
+                <span className="block truncate font-medium">{p.name}</span>
+                <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+                  {p.type === "custom" ? (
+                    <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-[0.08em]">
+                      Custom
+                    </span>
+                  ) : (
+                    <span>Provider</span>
+                  )}
+                  <span className="h-1 w-1 rounded-full bg-border" />
+                  <span>{p.tested ? "Active" : "Not tested"}</span>
+                </div>
+              </div>
               <span
                 className={cn(
                   "h-2.5 w-2.5 rounded-full shrink-0",
@@ -114,6 +134,7 @@ export default function SettingsPage({ initialData }: { initialData: UserSetting
               />
             </>
           )}
+          {compact && <CompactHint label={p.name} />}
         </button>
       ))}
     </>
@@ -253,7 +274,7 @@ export default function SettingsPage({ initialData }: { initialData: UserSetting
   }
 
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex h-screen overflow-hidden bg-transparent p-2 md:p-4">
       {isProviderDrawerMounted && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div
@@ -269,23 +290,31 @@ export default function SettingsPage({ initialData }: { initialData: UserSetting
               isProviderDrawerVisible ? "translate-x-0 opacity-100" : "-translate-x-[105%] opacity-0"
             )}
           >
-            <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
-              <div>
-                <p className="text-[0.64rem] uppercase tracking-[0.22em] text-muted-foreground">Providers</p>
-                <h2 className="font-display text-2xl leading-none">模型列表</h2>
+            <div className="px-4 pb-3 pt-5">
+              <div className="mb-5 flex items-start justify-between">
+                <div>
+                  <p className="text-[0.68rem] uppercase tracking-[0.24em] text-muted-foreground">Providers</p>
+                  <h2 className="font-display text-[2rem] leading-none">Models</h2>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={closeProviderDrawer}
+                  className="bg-background/50 backdrop-blur"
+                >
+                  <PanelLeftClose className="h-4 w-4" />
+                </Button>
               </div>
-              <Button variant="ghost" size="icon" onClick={closeProviderDrawer}>
-                <PanelLeftClose className="h-4 w-4" />
-              </Button>
             </div>
-            <div className="scrollbar-thin h-[calc(100%-140px)] overflow-y-auto p-3 space-y-1">
+            <div className="scrollbar-thin h-[calc(100%-200px)] overflow-y-auto px-3 pb-4">
               {renderProviderList(false, true)}
             </div>
-            <div className="border-t border-border p-3">
+            <div className="border-t border-sidebar-border/80 px-4 py-4">
+              <p className="text-[0.68rem] uppercase tracking-[0.22em] text-muted-foreground">Actions</p>
               <Button
                 variant="outline"
                 size="sm"
-                className="w-full gap-2"
+                className="mt-2 w-full gap-2"
                 onClick={() => {
                   addCustomProvider();
                   closeProviderDrawer();
@@ -298,38 +327,101 @@ export default function SettingsPage({ initialData }: { initialData: UserSetting
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-        <Link href="/">
-          <Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
-        </Link>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="hidden md:inline-flex"
-          onClick={() => setIsProviderRailCollapsed((v) => !v)}
-        >
-          {isProviderRailCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="md:hidden"
-          onClick={openProviderDrawer}
-        >
-          <PanelLeftOpen className="h-4 w-4" />
-        </Button>
-        <h1 className="text-lg font-semibold">模型配置</h1>
-        <div className="ml-auto flex items-center gap-2">
-          {saved && <span className="text-sm text-green-600">已保存</span>}
-          <Button onClick={handleSave} disabled={saving} size="sm">
-            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : saved ? <Check className="mr-2 h-4 w-4" /> : null}
-            {saved ? "已保存" : "保存"}
-          </Button>
+      <aside
+        className={cn(
+          "paper-panel hidden shrink-0 overflow-visible rounded-[2rem] transition-[width] duration-300 md:block",
+          isProviderRailCollapsed ? "w-[5.5rem]" : "w-[19.5rem]"
+        )}
+      >
+        <div className="flex h-full flex-col">
+          <div className={cn("px-4 pb-3 pt-5", isProviderRailCollapsed && "px-3 pt-5")}>
+            {isProviderRailCollapsed ? (
+              <div className="mb-4 flex justify-center">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsProviderRailCollapsed((v) => !v)}
+                  className="bg-background/50 backdrop-blur"
+                  title={isProviderRailCollapsed ? "展开模型栏" : "收起模型栏"}
+                >
+                  {isProviderRailCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+                </Button>
+              </div>
+            ) : (
+              <div className="relative mb-5">
+                <div>
+                  <p className="text-[0.68rem] uppercase tracking-[0.24em] text-muted-foreground">Providers</p>
+                  <h2 className="font-display text-[2rem] leading-none">Models</h2>
+                </div>
+                <div className="absolute right-0 top-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsProviderRailCollapsed((v) => !v)}
+                    className="bg-background/50 backdrop-blur"
+                    title="收起模型栏"
+                  >
+                    <PanelLeftClose className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+          <div
+            className={cn(
+              "scrollbar-thin flex-1 overflow-y-auto pb-4",
+              isProviderRailCollapsed ? "overflow-x-visible px-2" : "px-3"
+            )}
+          >
+            {renderProviderList(isProviderRailCollapsed)}
+          </div>
+          <div className={cn("border-t border-sidebar-border/80 px-4 py-4", isProviderRailCollapsed && "px-3")}>
+            {!isProviderRailCollapsed && (
+              <p className="text-[0.68rem] uppercase tracking-[0.22em] text-muted-foreground">Actions</p>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn(
+                "group relative mt-2 gap-2",
+                isProviderRailCollapsed ? "w-full justify-center px-0" : "w-full justify-start"
+              )}
+              onClick={addCustomProvider}
+              title="添加 Custom Provider"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {!isProviderRailCollapsed && "添加 Custom Provider"}
+              {isProviderRailCollapsed && <CompactHint label="添加 Custom Provider" />}
+            </Button>
+          </div>
         </div>
-      </div>
+      </aside>
 
-      <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
+      <div className="paper-panel flex min-w-0 flex-1 flex-col overflow-hidden rounded-[2rem] md:ml-4">
+        {/* Header */}
+        <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+          <Link href="/">
+            <Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
+          </Link>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            onClick={openProviderDrawer}
+          >
+            <PanelLeftOpen className="h-4 w-4" />
+          </Button>
+          <h1 className="text-lg font-semibold">模型配置</h1>
+          <div className="ml-auto flex items-center gap-2">
+            {saved && <span className="text-sm text-green-600">已保存</span>}
+            <Button onClick={handleSave} disabled={saving} size="sm">
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : saved ? <Check className="mr-2 h-4 w-4" /> : null}
+              {saved ? "已保存" : "保存"}
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex flex-1 overflow-hidden flex-col">
         {/* Mobile provider summary */}
         <div className="border-b border-border px-3 py-2 md:hidden">
           <button
@@ -339,23 +431,6 @@ export default function SettingsPage({ initialData }: { initialData: UserSetting
             当前: {current?.name ?? "Provider"} · 点此切换
           </button>
         </div>
-
-        {/* Desktop: sidebar */}
-        <aside
-          className={cn(
-            "hidden shrink-0 border-r border-border overflow-y-auto transition-[width] duration-300 md:flex md:flex-col",
-            isProviderRailCollapsed ? "w-[5.5rem]" : "w-56"
-          )}
-        >
-          <div className="flex-1 p-2 space-y-1">
-            {renderProviderList(isProviderRailCollapsed)}
-          </div>
-          <div className="border-t border-border p-2">
-            <Button variant="outline" size="sm" className={cn("gap-2", isProviderRailCollapsed ? "w-auto px-2" : "w-full")} onClick={addCustomProvider}>
-              <Plus className="h-3.5 w-3.5" /> 添加 Custom Provider
-            </Button>
-          </div>
-        </aside>
 
         {/* Detail panel */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
@@ -482,6 +557,7 @@ export default function SettingsPage({ initialData }: { initialData: UserSetting
             </div>
           )}
         </main>
+        </div>
       </div>
     </div>
   );

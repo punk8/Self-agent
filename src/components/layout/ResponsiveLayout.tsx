@@ -1,18 +1,11 @@
 "use client";
 
-import {
-  cloneElement,
-  isValidElement,
-  useCallback,
-  useMemo,
-  useState,
-  type ReactElement,
-} from "react";
+import { useCallback, useState } from "react";
 import { Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ResponsiveLayoutProps {
-  sidebar: React.ReactNode;
+  renderSidebar: (props: InjectedSidebarProps) => React.ReactNode;
   children: React.ReactNode;
 }
 
@@ -24,7 +17,7 @@ interface InjectedSidebarProps {
 
 const DESKTOP_SIDEBAR_STORAGE_KEY = "self-agent-chat-sidebar-collapsed";
 
-export function ResponsiveLayout({ sidebar, children }: ResponsiveLayoutProps) {
+export function ResponsiveLayout({ renderSidebar, children }: ResponsiveLayoutProps) {
   const [sidebarMounted, setSidebarMounted] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(() => {
@@ -52,26 +45,6 @@ export function ResponsiveLayout({ sidebar, children }: ResponsiveLayoutProps) {
     window.setTimeout(() => setSidebarMounted(false), 220);
   }, []);
 
-  const desktopSidebarNode = useMemo(() => {
-    if (!isValidElement(sidebar)) return sidebar;
-
-    return cloneElement(sidebar as ReactElement<InjectedSidebarProps>, {
-      collapsed: desktopCollapsed,
-      onToggleCollapse: toggleDesktopCollapsed,
-      onNavigate: closeMobileSidebar,
-    });
-  }, [closeMobileSidebar, desktopCollapsed, sidebar, toggleDesktopCollapsed]);
-
-  const mobileSidebarNode = useMemo(() => {
-    if (!isValidElement(sidebar)) return sidebar;
-
-    return cloneElement(sidebar as ReactElement<InjectedSidebarProps>, {
-      collapsed: false,
-      onToggleCollapse: toggleDesktopCollapsed,
-      onNavigate: closeMobileSidebar,
-    });
-  }, [closeMobileSidebar, sidebar, toggleDesktopCollapsed]);
-
   return (
     <div className="flex h-screen overflow-hidden bg-transparent p-2 md:p-4">
       {/* Desktop sidebar */}
@@ -80,7 +53,11 @@ export function ResponsiveLayout({ sidebar, children }: ResponsiveLayoutProps) {
           desktopCollapsed ? "w-[5.5rem]" : "w-[19.5rem]"
         }`}
       >
-        <div className="absolute right-3 top-3 z-20 hidden md:block">
+        <div
+          className={`absolute z-20 hidden md:block ${
+            desktopCollapsed ? "left-1/2 top-5 -translate-x-1/2" : "right-3 top-3"
+          }`}
+        >
           <Button
             variant="ghost"
             size="icon"
@@ -96,7 +73,11 @@ export function ResponsiveLayout({ sidebar, children }: ResponsiveLayoutProps) {
           </Button>
         </div>
         <div className="h-full rounded-[inherit]">
-          {desktopSidebarNode}
+          {renderSidebar({
+            collapsed: desktopCollapsed,
+            onToggleCollapse: toggleDesktopCollapsed,
+            onNavigate: closeMobileSidebar,
+          })}
         </div>
       </aside>
 
@@ -119,7 +100,11 @@ export function ResponsiveLayout({ sidebar, children }: ResponsiveLayoutProps) {
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            {mobileSidebarNode}
+            {renderSidebar({
+              collapsed: false,
+              onToggleCollapse: toggleDesktopCollapsed,
+              onNavigate: closeMobileSidebar,
+            })}
           </aside>
         </div>
       )}

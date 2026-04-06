@@ -1,3 +1,5 @@
+"use client";
+
 import { ResponsiveLayout } from "@/components/layout/ResponsiveLayout";
 import { ChatSidebar } from "./ChatSidebar";
 
@@ -7,7 +9,7 @@ export default function ChatLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ResponsiveLayout sidebar={<ChatSidebar />}>
+    <ResponsiveLayout renderSidebar={(props) => <ChatSidebar {...props} />}>
       {children}
     </ResponsiveLayout>
   );

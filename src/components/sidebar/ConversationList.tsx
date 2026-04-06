@@ -77,26 +77,25 @@ export function ConversationList({
 }: ConversationListProps) {
   return (
     <div className={cn("flex h-full flex-col", collapsed && "overflow-visible")}>
-      <div className={cn("px-4 pb-3 pt-5", collapsed && "px-3")}>
+      <div className={cn("px-4 pb-3 pt-5", collapsed && "px-3 pt-[5.7rem]")}>
         <div className={cn("mb-5", collapsed && "mb-3")}>
-          {!collapsed ? (
+          {!collapsed && (
             <>
               <p className="text-[0.68rem] uppercase tracking-[0.24em] text-muted-foreground">
                 Conversations
               </p>
               <h2 className="font-display text-[2rem] leading-none">Self-Agent</h2>
             </>
-          ) : (
-            <div className="flex justify-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[rgba(249,191,101,0.16)] text-foreground shadow-[var(--paper-shadow-soft)]">
-                <MessageSquare className="h-5 w-5 text-muted-foreground" />
-              </div>
-            </div>
           )}
         </div>
         <Button
           onClick={onNew}
-          className={cn("group relative w-full gap-2", collapsed ? "justify-center px-0" : "justify-start")}
+          className={cn(
+            "group relative w-full gap-2",
+            collapsed
+              ? "h-[4.75rem] justify-center rounded-[1.75rem] px-0"
+              : "justify-start"
+          )}
           variant="outline"
           title="新对话"
         >
@@ -161,9 +160,7 @@ export function ConversationList({
         ))}
         {conversations.length === 0 && (
           collapsed ? (
-            <div className="px-2 py-6 text-center">
-              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Empty</p>
-            </div>
+            <div className="px-2 py-1" />
           ) : (
             <div className="paper-card mx-1 rounded-[1.5rem] px-4 py-8 text-center">
               <p className="font-display text-2xl">No conversations yet</p>
