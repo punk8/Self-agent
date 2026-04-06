@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageBubble } from "./MessageBubble";
+import { FloatingToolbar } from "./FloatingToolbar";
 
 export interface Message {
   id: string;
@@ -39,6 +40,7 @@ export function MessageList({ messages }: MessageListProps) {
         {messages.map((msg) => (
           <MessageBubble
             key={msg.id}
+            id={msg.id}
             role={msg.role}
             content={msg.content}
             isStreaming={msg.isStreaming}
@@ -46,6 +48,7 @@ export function MessageList({ messages }: MessageListProps) {
         ))}
       </div>
       <div ref={bottomRef} />
+      <FloatingToolbar />
     </ScrollArea>
   );
 }

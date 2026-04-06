@@ -1,14 +1,15 @@
 import { cn } from "@/lib/utils";
 import { User, Bot } from "lucide-react";
-import { MarkdownRenderer } from "@/components/shared/MarkdownRenderer";
+import { AnnotatedMessage } from "./AnnotatedMessage";
 
 interface MessageBubbleProps {
+  id: string;
   role: "user" | "assistant";
   content: string;
   isStreaming?: boolean;
 }
 
-export function MessageBubble({ role, content, isStreaming }: MessageBubbleProps) {
+export function MessageBubble({ id, role, content, isStreaming }: MessageBubbleProps) {
   const isUser = role === "user";
 
   return (
@@ -27,10 +28,7 @@ export function MessageBubble({ role, content, isStreaming }: MessageBubbleProps
           {isUser ? (
             <p className="whitespace-pre-wrap text-sm">{content}</p>
           ) : (
-            <MarkdownRenderer content={content} />
-          )}
-          {isStreaming && (
-            <span className="ml-1 inline-block h-4 w-2 animate-pulse bg-foreground/50" />
+            <AnnotatedMessage messageId={id} content={content} isStreaming={isStreaming} />
           )}
         </div>
       </div>
