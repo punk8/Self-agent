@@ -1,8 +1,12 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
+import { getCurrentUserId } from "@/lib/get-user";
 
 export async function GET() {
+  const userId = await getCurrentUserId();
+
   const tags = await prisma.tag.findMany({
+    where: { userId },
     orderBy: { name: "asc" },
     include: {
       _count: {
@@ -15,6 +19,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const userId = await getCurrentUserId();
   const body = await req.json();
   const { name, color } = body;
 
@@ -23,8 +28,8 @@ export async function POST(req: NextRequest) {
   }
 
   const tag = await prisma.tag.upsert({
-    where: { name: name.trim().toLowerCase() },
-    create: { name: name.trim().toLowerCase(), color },
+    where: { userId_name: { userId, name: name.trim().toLowerCase() } },
+    create: { name: name.trim().toLowerCase(), userId, color },
     update: { color },
   });
 

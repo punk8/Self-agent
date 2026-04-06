@@ -138,8 +138,9 @@ async function markTested(userId: string, providerId: string, passed: boolean) {
     tested = tested.filter((id) => id !== providerId);
   }
 
-  await prisma.userSettings.update({
+  await prisma.userSettings.upsert({
     where: { userId },
-    data: { testedProviders: JSON.stringify(tested) },
+    create: { userId, testedProviders: JSON.stringify(tested) },
+    update: { testedProviders: JSON.stringify(tested) },
   });
 }
