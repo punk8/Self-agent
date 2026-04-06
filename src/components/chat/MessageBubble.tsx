@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { User, Bot } from "lucide-react";
+import { MarkdownRenderer } from "@/components/shared/MarkdownRenderer";
 
 interface MessageBubbleProps {
   role: "user" | "assistant";
@@ -22,8 +23,12 @@ export function MessageBubble({ role, content, isStreaming }: MessageBubbleProps
       </div>
       <div className="min-w-0 flex-1 space-y-2">
         <p className="text-sm font-medium">{isUser ? "你" : "AI"}</p>
-        <div className="prose prose-sm max-w-none dark:prose-invert whitespace-pre-wrap break-words">
-          {content}
+        <div className="break-words">
+          {isUser ? (
+            <p className="whitespace-pre-wrap text-sm">{content}</p>
+          ) : (
+            <MarkdownRenderer content={content} />
+          )}
           {isStreaming && (
             <span className="ml-1 inline-block h-4 w-2 animate-pulse bg-foreground/50" />
           )}
