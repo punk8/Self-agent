@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 import { useConversationStore } from "@/stores/conversation-store";
 import { ConversationList } from "@/components/sidebar/ConversationList";
+import { updateConversation } from "@/lib/api-client";
 import { BookOpen, MessagesSquare, Settings } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -39,6 +40,11 @@ export function ChatSidebar({
     loadConversations();
   }, [loadConversations]);
 
+  const handleRename = useCallback(async (id: string, title: string) => {
+    await updateConversation(id, { title });
+    loadConversations();
+  }, [loadConversations]);
+
   const items = conversations.map((c) => ({
     id: c.id,
     title: c.title || "新对话",
@@ -51,9 +57,10 @@ export function ChatSidebar({
         <ConversationList
           conversations={items}
           activeId={activeConversationId}
-          onSelect={selectConversation}
-          onNew={startNewConversation}
+          onSelect={(id) => { selectConversation(id); onNavigate?.(); }}
+          onNew={() => { startNewConversation(); onNavigate?.(); }}
           onDelete={removeConversation}
+          onRename={handleRename}
           collapsed={collapsed}
         />
       </div>

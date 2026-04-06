@@ -25,73 +25,152 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Conversation not found" }, { status: 404 });
   }
 
-  // Build the raw dialogue for LLM analysis
-  const rawDialogue = conversation.messages
-    .map((m) => {
-      const role = m.role === "USER" ? "用户" : "AI";
-      return `${role}: ${m.content}`;
-    })
-    .join("\n\n");
-
-  // Generate title, summary, key points, and tags via LLM
-  let title = conversation.title || "学习笔记";
-  let summary = "";
-  let keyPoints: string[] = [];
-  let suggestedTags: string[] = [];
-
   const model = conversation.model || "gpt-4o";
 
-  try {
-    const gen = chat({
-      model,
-      messages: [
-        {
-          role: "user",
-          content: `你是一个学习笔记助手。请分析以下对话，生成结构化的学习笔记元数据。
+  // Check for existing note
+  const existingNote = await prisma.note.findFirst({
+    where: { conversationId, userId },
+    include: { tags: { include: { tag: true } } },
+  });
 
-要求：
-1. title: 一个简洁准确的笔记标题（不超过20字）
-2. summary: 2-3句话的核心摘要，概括对话的主要内容和结论
-3. keyPoints: 3-5个关键知识点，每个用一句话概括
-4. tags: 3-5个分类标签（短词）
+  // Find new messages since last export
+  const newMessages = existingNote
+    ? conversation.messages.filter((m) => m.createdAt > existingNote.updatedAt)
+    : conversation.messages;
 
-请严格使用JSON格式返回：
-{"title": "...", "summary": "...", "keyPoints": ["...", "..."], "tags": ["...", "..."]}
-
-对话内容：
-${rawDialogue.slice(0, 4000)}`,
-        },
-      ],
-      temperature: 0.3,
-      maxTokens: 500,
-    }, keys);
-
-    let result = "";
-    for await (const chunk of gen) {
-      if (chunk.type === "token" && chunk.content) {
-        result += chunk.content;
-      }
-    }
-
-    const jsonMatch = result.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      title = parsed.title || title;
-      summary = parsed.summary || "";
-      keyPoints = (parsed.keyPoints || []).slice(0, 5);
-      suggestedTags = (parsed.tags || []).slice(0, 5);
-    }
-  } catch {
-    // Fallback - use conversation title
+  // No new messages — return existing note as-is
+  if (existingNote && newMessages.length === 0) {
+    return Response.json(existingNote, { status: 200 });
   }
 
-  // Build structured note content
-  const noteContent = buildNoteContent({
-    title,
-    summary,
-    keyPoints,
-    messages: conversation.messages,
-  });
+  let title = "";
+  let summary = "";
+  let suggestedTags: string[] = [];
+  let noteBody = "";
+
+  if (existingNote && newMessages.length > 0) {
+    // === INCREMENTAL: merge new content into existing note ===
+    const newDialogue = newMessages
+      .map((m) => `[${m.role === "USER" ? "Q" : "A"}] ${m.content}`)
+      .join("\n\n")
+      .slice(0, 4000);
+
+    try {
+      const result = await collectStream(chat({
+        model,
+        messages: [{
+          role: "user",
+          content: `你是专业的学习笔记整理助手。下面有一篇已有笔记和一段新的对话内容。
+请将新对话中的知识增量合并到已有笔记中。
+
+规则：
+- 保留已有笔记的结构和内容，在合适的章节补充新知识
+- 如果新内容引入了新的主题，可以增加新的章节
+- 更新摘要和标签以反映新增内容
+- 不要出现对话痕迹（"用户问""AI答"等）
+- 保留所有有价值的代码片段和公式
+
+严格按以下格式输出：
+
+---META---
+TITLE: （更新后的标题，不超过20字）
+SUMMARY: （更新后的2-3句摘要）
+TAGS: （更新后的3-5个标签，逗号分隔）
+---NOTE---
+（更新后的完整笔记正文，Markdown格式，包含：核心概念、关键知识点、深入理解、注意事项、总结）
+
+已有笔记：
+${existingNote.content.slice(0, 4000)}
+
+新增对话内容：
+${newDialogue}`,
+        }],
+        temperature: 0.3,
+        maxTokens: 4096,
+      }, keys));
+
+      ({ title, summary, suggestedTags, noteBody } = parseResult(result));
+    } catch {
+      // Fallback: append new AI responses to existing note
+      const newAiContent = newMessages
+        .filter((m) => m.role === "ASSISTANT")
+        .map((m) => m.content)
+        .join("\n\n");
+      noteBody = existingNote.content + "\n\n---\n\n## 补充内容\n\n" + newAiContent;
+    }
+  } else {
+    // === FULL: first-time generation ===
+    const fullDialogue = conversation.messages
+      .map((m) => `[${m.role === "USER" ? "Q" : "A"}] ${m.content}`)
+      .join("\n\n")
+      .slice(0, 6000);
+
+    try {
+      const result = await collectStream(chat({
+        model,
+        messages: [{
+          role: "user",
+          content: `你是专业的学习笔记整理助手。将下面的对话提炼成一篇知识笔记。
+
+严格按以下格式输出，不要偏离：
+
+---META---
+TITLE: （简洁标题，不超过20字）
+SUMMARY: （2-3句核心摘要）
+TAGS: （3-5个标签，用逗号分隔）
+---NOTE---
+## 核心概念
+
+（用1-2段简明文字介绍主题的核心概念）
+
+## 关键知识点
+
+- **知识点1**：简要说明
+- **知识点2**：简要说明
+- **知识点3**：简要说明
+（至少列3-8个关键点）
+
+## 深入理解
+
+（对重要或复杂的概念做详细展开，保留有价值的代码、公式、示例）
+
+## 注意事项
+
+- 注意点1
+- 注意点2
+（如果对话中有易错点或提醒）
+
+## 总结
+
+（3-5句话总结全文核心要点）
+
+规则：
+- 绝对不要出现"用户问""AI答""Q:""A:"等对话痕迹
+- 将知识重新组织成独立的学习资料
+- 保留所有有价值的代码片段和公式
+- 用中文写（除非对话本身是英文）
+
+对话内容：
+${fullDialogue}`,
+        }],
+        temperature: 0.3,
+        maxTokens: 4096,
+      }, keys));
+
+      ({ title, summary, suggestedTags, noteBody } = parseResult(result));
+    } catch {
+      // Fallback
+    }
+  }
+
+  // Fallbacks
+  if (!title) title = existingNote?.title || conversation.title || "学习笔记";
+  if (!summary) summary = existingNote?.summary || "";
+  if (!noteBody) {
+    noteBody = existingNote?.content || buildFallbackContent(conversation.messages);
+  }
+
+  const noteContent = noteBody.startsWith("# ") ? noteBody : `# ${title}\n\n${noteBody}`;
 
   // Create or find tags
   const tagRecords = await Promise.all(
@@ -108,24 +187,33 @@ ${rawDialogue.slice(0, 4000)}`,
 
   const validTagIds = tagRecords.filter(Boolean).map((t) => t!.id);
 
-  // Create the note
-  const note = await prisma.note.create({
-    data: {
-      title,
-      content: noteContent,
-      summary,
-      conversationId,
-      userId,
-      tags: {
-        create: validTagIds.map((tagId) => ({ tagId })),
+  let note;
+  if (existingNote) {
+    await prisma.tagOnNote.deleteMany({ where: { noteId: existingNote.id } });
+    note = await prisma.note.update({
+      where: { id: existingNote.id },
+      data: {
+        title,
+        content: noteContent,
+        summary,
+        tags: { create: validTagIds.map((tagId) => ({ tagId })) },
       },
-    },
-    include: {
-      tags: { include: { tag: true } },
-    },
-  });
+      include: { tags: { include: { tag: true } } },
+    });
+  } else {
+    note = await prisma.note.create({
+      data: {
+        title,
+        content: noteContent,
+        summary,
+        conversationId,
+        userId,
+        tags: { create: validTagIds.map((tagId) => ({ tagId })) },
+      },
+      include: { tags: { include: { tag: true } } },
+    });
+  }
 
-  // Also tag the conversation
   for (const tagId of validTagIds) {
     await prisma.tagOnConversation.upsert({
       where: { conversationId_tagId: { conversationId, tagId } },
@@ -134,52 +222,47 @@ ${rawDialogue.slice(0, 4000)}`,
     });
   }
 
-  return Response.json(note, { status: 201 });
+  return Response.json(note, { status: existingNote ? 200 : 201 });
 }
 
-function buildNoteContent({
-  title,
-  summary,
-  keyPoints,
-  messages,
-}: {
-  title: string;
-  summary: string;
-  keyPoints: string[];
-  messages: Array<{ role: string; content: string }>;
-}) {
-  const sections: string[] = [];
+// --- Helpers ---
 
-  // Header
-  sections.push(`# ${title}\n`);
+function parseResult(raw: string) {
+  let title = "";
+  let summary = "";
+  let suggestedTags: string[] = [];
+  let noteBody = "";
 
-  // Summary
-  if (summary) {
-    sections.push(`## 摘要\n\n${summary}\n`);
+  const metaMatch = raw.match(/---META---([\s\S]*?)---NOTE---/);
+  if (metaMatch) {
+    const meta = metaMatch[1];
+    const t = meta.match(/TITLE:\s*(.+)/);
+    const s = meta.match(/SUMMARY:\s*(.+)/);
+    const g = meta.match(/TAGS:\s*(.+)/);
+    if (t) title = t[1].trim();
+    if (s) summary = s[1].trim();
+    if (g) suggestedTags = g[1].split(/[,，]/).map((x) => x.trim()).filter(Boolean).slice(0, 5);
+
+    const noteStart = raw.indexOf("---NOTE---");
+    if (noteStart !== -1) noteBody = raw.slice(noteStart + "---NOTE---".length).trim();
+  } else {
+    noteBody = raw.trim();
   }
 
-  // Key points
-  if (keyPoints.length > 0) {
-    sections.push(`## 关键知识点\n\n${keyPoints.map((p) => `- ${p}`).join("\n")}\n`);
+  return { title, summary, suggestedTags, noteBody };
+}
+
+async function collectStream(gen: AsyncGenerator<{ type: string; content?: string }>): Promise<string> {
+  let result = "";
+  for await (const chunk of gen) {
+    if (chunk.type === "token" && chunk.content) result += chunk.content;
   }
+  return result;
+}
 
-  // Dialogue content - formatted as Q&A pairs
-  sections.push(`## 对话详情\n`);
-
-  let currentQ = "";
-  for (const m of messages) {
-    if (m.role === "USER") {
-      currentQ = m.content;
-    } else if (m.role === "ASSISTANT") {
-      if (currentQ) {
-        sections.push(`### Q: ${currentQ.length > 80 ? currentQ.slice(0, 80) + "..." : currentQ}\n`);
-        sections.push(m.content + "\n");
-        currentQ = "";
-      } else {
-        sections.push(m.content + "\n");
-      }
-    }
-  }
-
-  return sections.join("\n");
+function buildFallbackContent(messages: Array<{ role: string; content: string }>): string {
+  return messages
+    .filter((m) => m.role === "ASSISTANT")
+    .map((m) => m.content)
+    .join("\n\n---\n\n");
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useEffect } from "react";
 import { useAnnotationStore } from "@/stores/annotation-store";
 
 interface SelectableTextProps {
@@ -12,7 +12,7 @@ export function SelectableText({ messageId, children }: SelectableTextProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { setActiveSelection } = useAnnotationStore();
 
-  const handleMouseUp = useCallback(() => {
+  const handleSelection = useCallback(() => {
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed || !containerRef.current) {
       return;
@@ -41,6 +41,37 @@ export function SelectableText({ messageId, children }: SelectableTextProps) {
       rect,
     });
   }, [messageId, setActiveSelection]);
+
+  // Desktop: mouseup
+  const handleMouseUp = useCallback(() => {
+    // Small delay to let selection finalize
+    setTimeout(handleSelection, 10);
+  }, [handleSelection]);
+
+  // Mobile: listen to selectionchange for touch-based selection
+  useEffect(() => {
+    let selectionTimeout: ReturnType<typeof setTimeout>;
+
+    const handleSelectionChange = () => {
+      // Debounce to wait for selection to stabilize
+      clearTimeout(selectionTimeout);
+      selectionTimeout = setTimeout(() => {
+        const selection = window.getSelection();
+        if (!selection || selection.isCollapsed || !containerRef.current) return;
+
+        const range = selection.getRangeAt(0);
+        if (!containerRef.current.contains(range.commonAncestorContainer)) return;
+
+        handleSelection();
+      }, 300);
+    };
+
+    document.addEventListener("selectionchange", handleSelectionChange);
+    return () => {
+      document.removeEventListener("selectionchange", handleSelectionChange);
+      clearTimeout(selectionTimeout);
+    };
+  }, [handleSelection]);
 
   return (
     <div ref={containerRef} onMouseUp={handleMouseUp}>

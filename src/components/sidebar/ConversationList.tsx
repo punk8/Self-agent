@@ -1,7 +1,8 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { MessageSquare, Plus, Trash2 } from "lucide-react";
+import { MessageSquare, Plus, Trash2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export interface ConversationItem {
@@ -16,19 +17,14 @@ interface ConversationListProps {
   onSelect: (id: string) => void;
   onNew: () => void;
   onDelete?: (id: string) => void;
+  onRename?: (id: string, title: string) => void;
   collapsed?: boolean;
 }
 
 function formatConversationTimestamp(updatedAt: string) {
   const date = new Date(updatedAt);
-  if (Number.isNaN(date.getTime())) {
-    return "Recent update";
-  }
-
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "short",
-    day: "numeric",
-  }).format(date);
+  if (Number.isNaN(date.getTime())) return "Recent update";
+  return new Intl.DateTimeFormat("zh-CN", { month: "short", day: "numeric" }).format(date);
 }
 
 function CompactHint({ label }: { label: string }) {
@@ -39,15 +35,7 @@ function CompactHint({ label }: { label: string }) {
   );
 }
 
-function CompactConversationPreview({
-  title,
-  updatedAt,
-  active,
-}: {
-  title: string;
-  updatedAt: string;
-  active: boolean;
-}) {
+function CompactConversationPreview({ title, updatedAt, active }: { title: string; updatedAt: string; active: boolean }) {
   return (
     <div className="pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 z-30 hidden w-56 -translate-y-1/2 rounded-[1.25rem] border border-border/70 bg-background/95 px-3.5 py-3 text-left shadow-[var(--paper-shadow-hover)] backdrop-blur transition-all duration-200 group-hover:block">
       <div className="flex items-start gap-3">
@@ -67,35 +55,64 @@ function CompactConversationPreview({
   );
 }
 
+function EditableTitle({ value, onSave, onCancel }: { value: string; onSave: (v: string) => void; onCancel: () => void }) {
+  const [text, setText] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, []);
+
+  const handleSubmit = () => {
+    const trimmed = text.trim();
+    if (trimmed && trimmed !== value) {
+      onSave(trimmed);
+    } else {
+      onCancel();
+    }
+  };
+
+  return (
+    <input
+      ref={inputRef}
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={handleSubmit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") { e.preventDefault(); handleSubmit(); }
+        if (e.key === "Escape") onCancel();
+      }}
+      className="block w-full truncate bg-transparent text-sm font-medium outline-none ring-1 ring-primary/40 rounded px-1 -mx-1"
+    />
+  );
+}
+
 export function ConversationList({
   conversations,
   activeId,
   onSelect,
   onNew,
   onDelete,
+  onRename,
   collapsed = false,
 }: ConversationListProps) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+
   return (
     <div className={cn("flex h-full flex-col", collapsed && "overflow-visible")}>
       <div className={cn("px-4 pb-3 pt-5", collapsed && "px-3 pt-[5.7rem]")}>
         <div className={cn("mb-5", collapsed && "mb-3")}>
           {!collapsed && (
             <>
-              <p className="text-[0.68rem] uppercase tracking-[0.24em] text-muted-foreground">
-                Conversations
-              </p>
+              <p className="text-[0.68rem] uppercase tracking-[0.24em] text-muted-foreground">Conversations</p>
               <h2 className="font-display text-[2rem] leading-none">Self-Agent</h2>
             </>
           )}
         </div>
         <Button
           onClick={onNew}
-          className={cn(
-            "group relative w-full gap-2",
-            collapsed
-              ? "h-[4.75rem] justify-center rounded-[1.75rem] px-0"
-              : "justify-start"
-          )}
+          className={cn("group relative w-full gap-2", collapsed ? "h-[4.75rem] justify-center rounded-[1.75rem] px-0" : "justify-start")}
           variant="outline"
           title="新对话"
         >
@@ -104,12 +121,7 @@ export function ConversationList({
           {collapsed && <CompactHint label="新对话" />}
         </Button>
       </div>
-      <div
-        className={cn(
-          "scrollbar-thin flex-1 overflow-y-auto pb-4",
-          collapsed ? "overflow-x-visible px-2" : "px-3"
-        )}
-      >
+      <div className={cn("scrollbar-thin flex-1 overflow-y-auto pb-4", collapsed ? "overflow-x-visible px-2" : "px-3")}>
         {conversations.map((conv) => (
           <div
             key={conv.id}
@@ -131,9 +143,22 @@ export function ConversationList({
                 <MessageSquare className="h-4 w-4 text-muted-foreground" />
               </div>
               {!collapsed && (
-                <div className="min-w-0">
-                  <span className="block truncate font-medium">{conv.title || "新对话"}</span>
-                  <span className="block text-xs text-muted-foreground">Quiet thread</span>
+                <div className="min-w-0 flex-1">
+                  {editingId === conv.id ? (
+                    <EditableTitle
+                      value={conv.title || "新对话"}
+                      onSave={(newTitle) => {
+                        onRename?.(conv.id, newTitle);
+                        setEditingId(null);
+                      }}
+                      onCancel={() => setEditingId(null)}
+                    />
+                  ) : (
+                    <span className="block truncate font-medium">{conv.title || "新对话"}</span>
+                  )}
+                  <span className="block text-xs text-muted-foreground">
+                    {formatConversationTimestamp(conv.updatedAt)}
+                  </span>
                 </div>
               )}
               {collapsed && (
@@ -144,17 +169,27 @@ export function ConversationList({
                 />
               )}
             </button>
-            {onDelete && !collapsed && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(conv.id);
-                }}
-                className="mr-3 hidden rounded-full p-2 text-muted-foreground hover:bg-background/70 hover:text-destructive group-hover:block"
-                title="删除对话"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+            {!collapsed && (
+              <div className="mr-3 hidden items-center gap-0.5 group-hover:flex">
+                {onRename && editingId !== conv.id && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setEditingId(conv.id); }}
+                    className="rounded-full p-2 text-muted-foreground hover:bg-background/70 hover:text-foreground"
+                    title="重命名"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                {onDelete && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDelete(conv.id); }}
+                    className="rounded-full p-2 text-muted-foreground hover:bg-background/70 hover:text-destructive"
+                    title="删除对话"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
             )}
           </div>
         ))}
