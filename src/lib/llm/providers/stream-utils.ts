@@ -1,9 +1,34 @@
 import type { StreamChunk } from "../types";
 
+const NO_RESPONSE_BODY_ERROR = "No response body";
+
+type OpenAIStreamEvent = {
+  choices?: Array<{ delta?: { content?: string } }>;
+  usage?: { prompt_tokens?: number; completion_tokens?: number };
+};
+
+type AnthropicStreamEvent = {
+  type?: string;
+  delta?: { text?: string };
+  message?: { usage?: { input_tokens?: number } };
+  usage?: { output_tokens?: number };
+};
+
+type OllamaStreamEvent = {
+  message?: { content?: string };
+  done?: boolean;
+  prompt_eval_count?: number;
+  eval_count?: number;
+};
+
+function isNoResponseBodyError(error: unknown): boolean {
+  return error instanceof Error && error.message === NO_RESPONSE_BODY_ERROR;
+}
+
 export async function* iterateStreamLines(response: Response): AsyncGenerator<string> {
   const reader = response.body?.getReader();
   if (!reader) {
-    throw new Error("No response body");
+    throw new Error(NO_RESPONSE_BODY_ERROR);
   }
 
   const decoder = new TextDecoder();
@@ -52,10 +77,7 @@ export async function* parseOpenAICompatibleStream(
   try {
     for await (const data of iterateSSEData(response)) {
       if (data === "[DONE]") continue;
-      const json = parseJsonSafely<{
-        choices?: Array<{ delta?: { content?: string } }>;
-        usage?: { prompt_tokens?: number; completion_tokens?: number };
-      }>(data);
+      const json = parseJsonSafely<OpenAIStreamEvent>(data);
       if (!json) continue;
 
       const delta = json.choices?.[0]?.delta;
@@ -68,8 +90,8 @@ export async function* parseOpenAICompatibleStream(
       }
     }
   } catch (error) {
-    if (error instanceof Error && error.message === "No response body") {
-      yield { type: "error", error: "No response body" };
+    if (isNoResponseBodyError(error)) {
+      yield { type: "error", error: NO_RESPONSE_BODY_ERROR };
       return;
     }
     throw error;
@@ -87,12 +109,7 @@ export async function* parseAnthropicCompatibleStream(
 
   try {
     for await (const data of iterateSSEData(response)) {
-      const json = parseJsonSafely<{
-        type?: string;
-        delta?: { text?: string };
-        message?: { usage?: { input_tokens?: number } };
-        usage?: { output_tokens?: number };
-      }>(data);
+      const json = parseJsonSafely<AnthropicStreamEvent>(data);
       if (!json) continue;
 
       if (json.type === "content_block_delta" && json.delta?.text) {
@@ -104,8 +121,8 @@ export async function* parseAnthropicCompatibleStream(
       }
     }
   } catch (error) {
-    if (error instanceof Error && error.message === "No response body") {
-      yield { type: "error", error: "No response body" };
+    if (isNoResponseBodyError(error)) {
+      yield { type: "error", error: NO_RESPONSE_BODY_ERROR };
       return;
     }
     throw error;
@@ -124,12 +141,7 @@ export async function* parseOllamaStream(
   try {
     for await (const line of iterateStreamLines(response)) {
       if (!line.trim()) continue;
-      const json = parseJsonSafely<{
-        message?: { content?: string };
-        done?: boolean;
-        prompt_eval_count?: number;
-        eval_count?: number;
-      }>(line);
+      const json = parseJsonSafely<OllamaStreamEvent>(line);
       if (!json) continue;
 
       if (json.message?.content) {
@@ -141,8 +153,8 @@ export async function* parseOllamaStream(
       }
     }
   } catch (error) {
-    if (error instanceof Error && error.message === "No response body") {
-      yield { type: "error", error: "No response body" };
+    if (isNoResponseBodyError(error)) {
+      yield { type: "error", error: NO_RESPONSE_BODY_ERROR };
       return;
     }
     throw error;

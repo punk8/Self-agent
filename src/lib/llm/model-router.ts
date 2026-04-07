@@ -3,7 +3,23 @@ import { OpenAIProvider } from "./providers/openai-provider";
 import { OllamaProvider } from "./providers/ollama-provider";
 import { AnthropicProvider } from "./providers/anthropic-provider";
 import { CustomProvider } from "./providers/custom-provider";
-import type { UserApiKeys } from "./get-api-keys";
+import type { UserApiKeys, CustomProviderConfig } from "./get-api-keys";
+
+function createCustomProvider(config: CustomProviderConfig): CustomProvider {
+  const provider = new CustomProvider(
+    config.apiKey,
+    config.baseUrl,
+    config.modelId,
+    config.modelName,
+    config.apiFormat
+  );
+  provider.id = config.id;
+  provider.name = config.name || "Custom LLM";
+  if (provider.models.length > 0) {
+    provider.models[0].provider = config.id;
+  }
+  return provider;
+}
 
 function createProviders(keys: UserApiKeys): Map<string, LLMProvider> {
   const providers = new Map<string, LLMProvider>();
@@ -14,16 +30,9 @@ function createProviders(keys: UserApiKeys): Map<string, LLMProvider> {
   providers.set(ollama.id, ollama);
   providers.set(anthropic.id, anthropic);
 
-  // Add all custom providers
-  for (const cp of keys.customProviders) {
-    const custom = new CustomProvider(cp.apiKey, cp.baseUrl, cp.modelId, cp.modelName, cp.apiFormat);
-    // Use unique ID per custom provider to avoid collisions
-    custom.id = cp.id;
-    custom.name = cp.name || "Custom LLM";
-    if (custom.models.length > 0) {
-      custom.models[0].provider = cp.id;
-    }
-    providers.set(cp.id, custom);
+  for (const customConfig of keys.customProviders) {
+    const customProvider = createCustomProvider(customConfig);
+    providers.set(customConfig.id, customProvider);
   }
 
   return providers;
