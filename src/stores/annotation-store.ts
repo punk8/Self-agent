@@ -1,5 +1,11 @@
 import { create } from "zustand";
 
+export interface FollowUp {
+  question: string;
+  answer: string;
+  isStreaming?: boolean;
+}
+
 export interface Annotation {
   id: string;
   messageId: string;
@@ -8,12 +14,13 @@ export interface Annotation {
   selectedText: string;
   question: string;
   answer: string;
+  followUps: FollowUp[];
   isStreaming?: boolean;
   isExpanded?: boolean;
 }
 
 interface AnnotationState {
-  annotations: Map<string, Annotation[]>; // messageId -> annotations
+  annotations: Map<string, Annotation[]>;
   activeSelection: {
     messageId: string;
     text: string;
@@ -21,7 +28,7 @@ interface AnnotationState {
     endOffset: number;
     rect: DOMRect;
   } | null;
-  activeAnnotationId: string | null; // currently viewing in panel
+  activeAnnotationId: string | null;
 
   setActiveSelection: (selection: AnnotationState["activeSelection"]) => void;
   clearSelection: () => void;
@@ -31,6 +38,11 @@ interface AnnotationState {
   updateAnnotation: (messageId: string, annotationId: string, updates: Partial<Annotation>) => void;
   removeAnnotation: (messageId: string, annotationId: string) => void;
   toggleAnnotation: (messageId: string, annotationId: string) => void;
+
+  // Follow-up support
+  addFollowUp: (messageId: string, annotationId: string, followUp: FollowUp) => void;
+  updateLastFollowUp: (messageId: string, annotationId: string, updates: Partial<FollowUp>) => void;
+  appendToLastFollowUp: (messageId: string, annotationId: string, content: string) => void;
 
   setActiveAnnotationId: (id: string | null) => void;
   getAnnotationsForMessage: (messageId: string) => Annotation[];
@@ -48,7 +60,11 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
   setAnnotations: (messageId, annotations) => {
     set((state) => {
       const map = new Map(state.annotations);
-      map.set(messageId, annotations.map((a) => ({ ...a, isExpanded: false })));
+      map.set(messageId, annotations.map((a) => ({
+        ...a,
+        followUps: a.followUps || [],
+        isExpanded: false,
+      })));
       return { annotations: map };
     });
   },
@@ -57,7 +73,7 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
     set((state) => {
       const map = new Map(state.annotations);
       const existing = map.get(annotation.messageId) || [];
-      map.set(annotation.messageId, [...existing, annotation]);
+      map.set(annotation.messageId, [...existing, { ...annotation, followUps: annotation.followUps || [] }]);
       return { annotations: map, activeAnnotationId: annotation.id };
     });
   },
@@ -66,11 +82,7 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
     set((state) => {
       const map = new Map(state.annotations);
       const existing = map.get(messageId) || [];
-      map.set(
-        messageId,
-        existing.map((a) => (a.id === annotationId ? { ...a, ...updates } : a))
-      );
-      // If the annotation ID changed (temp -> persisted), update activeAnnotationId
+      map.set(messageId, existing.map((a) => (a.id === annotationId ? { ...a, ...updates } : a)));
       if (updates.id && state.activeAnnotationId === annotationId) {
         return { annotations: map, activeAnnotationId: updates.id };
       }
@@ -82,10 +94,7 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
     set((state) => {
       const map = new Map(state.annotations);
       const existing = map.get(messageId) || [];
-      map.set(
-        messageId,
-        existing.filter((a) => a.id !== annotationId)
-      );
+      map.set(messageId, existing.filter((a) => a.id !== annotationId));
       const newActiveId = state.activeAnnotationId === annotationId ? null : state.activeAnnotationId;
       return { annotations: map, activeAnnotationId: newActiveId };
     });
@@ -95,12 +104,49 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
     set((state) => {
       const map = new Map(state.annotations);
       const existing = map.get(messageId) || [];
-      map.set(
-        messageId,
-        existing.map((a) =>
-          a.id === annotationId ? { ...a, isExpanded: !a.isExpanded } : a
-        )
-      );
+      map.set(messageId, existing.map((a) =>
+        a.id === annotationId ? { ...a, isExpanded: !a.isExpanded } : a
+      ));
+      return { annotations: map };
+    });
+  },
+
+  addFollowUp: (messageId, annotationId, followUp) => {
+    set((state) => {
+      const map = new Map(state.annotations);
+      const existing = map.get(messageId) || [];
+      map.set(messageId, existing.map((a) =>
+        a.id === annotationId ? { ...a, followUps: [...a.followUps, followUp] } : a
+      ));
+      return { annotations: map };
+    });
+  },
+
+  updateLastFollowUp: (messageId, annotationId, updates) => {
+    set((state) => {
+      const map = new Map(state.annotations);
+      const existing = map.get(messageId) || [];
+      map.set(messageId, existing.map((a) => {
+        if (a.id !== annotationId || a.followUps.length === 0) return a;
+        const fups = [...a.followUps];
+        fups[fups.length - 1] = { ...fups[fups.length - 1], ...updates };
+        return { ...a, followUps: fups };
+      }));
+      return { annotations: map };
+    });
+  },
+
+  appendToLastFollowUp: (messageId, annotationId, content) => {
+    set((state) => {
+      const map = new Map(state.annotations);
+      const existing = map.get(messageId) || [];
+      map.set(messageId, existing.map((a) => {
+        if (a.id !== annotationId || a.followUps.length === 0) return a;
+        const fups = [...a.followUps];
+        const last = fups[fups.length - 1];
+        fups[fups.length - 1] = { ...last, answer: last.answer + content };
+        return { ...a, followUps: fups };
+      }));
       return { annotations: map };
     });
   },

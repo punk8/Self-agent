@@ -17,7 +17,10 @@ export async function POST(req: NextRequest) {
   const conversation = await prisma.conversation.findUnique({
     where: { id: conversationId },
     include: {
-      messages: { orderBy: { createdAt: "asc" } },
+      messages: {
+        orderBy: { createdAt: "asc" },
+        include: { annotations: true },
+      },
     },
   });
 
@@ -26,6 +29,17 @@ export async function POST(req: NextRequest) {
   }
 
   const model = conversation.model || "gpt-4o";
+
+  // Collect all annotations with follow-ups
+  const allAnnotations = conversation.messages.flatMap((m) =>
+    m.annotations.map((a) => {
+      let followUps: Array<{ question: string; answer: string }> = [];
+      if (a.followUps) {
+        try { followUps = JSON.parse(a.followUps); } catch {}
+      }
+      return { selectedText: a.selectedText, question: a.question, answer: a.answer, followUps };
+    })
+  );
 
   // Check for existing note
   const existingNote = await prisma.note.findFirst({
@@ -38,8 +52,23 @@ export async function POST(req: NextRequest) {
     ? conversation.messages.filter((m) => m.createdAt > existingNote.updatedAt)
     : conversation.messages;
 
-  // No new messages — return existing note as-is
-  if (existingNote && newMessages.length === 0) {
+  // Build annotations text block
+  const annotationsText = allAnnotations.length > 0
+    ? "\n\n补充标注（用户在AI回答上划词提问的内容，也需要整合进笔记）：\n" +
+      allAnnotations.map((a, i) => {
+        let text = `[标注${i + 1}] 原文: "${a.selectedText}"\n提问: ${a.question}\n回答: ${a.answer}`;
+        if (a.followUps.length > 0) {
+          text += "\n追问:";
+          for (const fu of a.followUps) {
+            text += `\n  Q: ${fu.question}\n  A: ${fu.answer}`;
+          }
+        }
+        return text;
+      }).join("\n\n")
+    : "";
+
+  // No new messages AND no new annotations — return existing note as-is
+  if (existingNote && newMessages.length === 0 && allAnnotations.length === 0) {
     return Response.json(existingNote, { status: 200 });
   }
 
@@ -83,7 +112,7 @@ TAGS: （更新后的3-5个标签，逗号分隔）
 ${existingNote.content.slice(0, 4000)}
 
 新增对话内容：
-${newDialogue}`,
+${newDialogue}${annotationsText.slice(0, 2000)}`,
         }],
         temperature: 0.3,
         maxTokens: 4096,
@@ -151,7 +180,7 @@ TAGS: （3-5个标签，用逗号分隔）
 - 用中文写（除非对话本身是英文）
 
 对话内容：
-${fullDialogue}`,
+${fullDialogue}${annotationsText.slice(0, 2000)}`,
         }],
         temperature: 0.3,
         maxTokens: 4096,

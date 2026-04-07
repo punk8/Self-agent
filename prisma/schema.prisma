@@ -78,6 +78,7 @@ model Annotation {
   question     String
   answer       String
   model        String?
+  followUps    String?  // JSON array of {question, answer} follow-up exchanges
   createdAt    DateTime @default(now())
   message      Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
 }

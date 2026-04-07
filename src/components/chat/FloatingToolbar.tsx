@@ -33,6 +33,7 @@ export function FloatingToolbar() {
       selectedText: text,
       question: question.trim(),
       answer: "",
+      followUps: [],
       isStreaming: true,
       isExpanded: true,
     });
