@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage:run": "vitest run --coverage --coverage.reporter=text --coverage.reporter=json-summary",
+    "test:coverage": "node scripts/coverage-check.mjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
@@ -37,10 +41,12 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "^4.1.3",
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
     "prisma": "^7.6.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.3"
   }
 }
