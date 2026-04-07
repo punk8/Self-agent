@@ -1,4 +1,5 @@
 import type { LLMProvider, ChatParams, StreamChunk, ModelInfo } from "../types";
+import { parseOpenAICompatibleStream } from "./stream-utils";
 
 export class OpenAIProvider implements LLMProvider {
   id = "openai";
@@ -46,52 +47,6 @@ export class OpenAIProvider implements LLMProvider {
       return;
     }
 
-    const reader = response.body?.getReader();
-    if (!reader) {
-      yield { type: "error", error: "No response body" };
-      return;
-    }
-
-    const decoder = new TextDecoder();
-    let buffer = "";
-    let promptTokens = 0;
-    let completionTokens = 0;
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || !trimmed.startsWith("data: ")) continue;
-          const data = trimmed.slice(6);
-          if (data === "[DONE]") continue;
-
-          try {
-            const json = JSON.parse(data);
-            const delta = json.choices?.[0]?.delta;
-            if (delta?.content) {
-              yield { type: "token", content: delta.content };
-            }
-            if (json.usage) {
-              promptTokens = json.usage.prompt_tokens || 0;
-              completionTokens = json.usage.completion_tokens || 0;
-            }
-          } catch {
-            // skip malformed JSON
-          }
-        }
-      }
-    } finally {
-      reader.releaseLock();
-    }
-
-    yield { type: "usage", promptTokens, completionTokens };
-    yield { type: "done" };
+    yield* parseOpenAICompatibleStream(response);
   }
 }

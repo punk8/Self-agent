@@ -29,22 +29,17 @@ function createProviders(keys: UserApiKeys): Map<string, LLMProvider> {
   return providers;
 }
 
-function buildModelMap(providers: Map<string, LLMProvider>): Map<string, string> {
-  const map = new Map<string, string>();
+function findProviderByModel(providers: Map<string, LLMProvider>, modelId: string): LLMProvider | undefined {
   for (const provider of providers.values()) {
-    for (const model of provider.models) {
-      map.set(model.id, provider.id);
+    if (provider.models.some((model) => model.id === modelId)) {
+      return provider;
     }
   }
-  return map;
+  return undefined;
 }
 
 // Static model list (for UI display, doesn't need keys)
 const staticProviders = [new OpenAIProvider(), new OllamaProvider(), new AnthropicProvider()];
-const staticModelMap = new Map<string, string>();
-for (const p of staticProviders) {
-  for (const m of p.models) staticModelMap.set(m.id, p.id);
-}
 
 export async function getAvailableModels(keys: UserApiKeys): Promise<ModelInfo[]> {
   const providers = createProviders(keys);
@@ -63,17 +58,9 @@ export async function getAvailableModels(keys: UserApiKeys): Promise<ModelInfo[]
 
 export async function* chat(params: ChatParams, keys: UserApiKeys): AsyncGenerator<StreamChunk> {
   const providers = createProviders(keys);
-  const modelMap = buildModelMap(providers);
-
-  const providerId = modelMap.get(params.model);
-  if (!providerId) {
-    yield { type: "error", error: `Unknown model: ${params.model}` };
-    return;
-  }
-
-  const provider = providers.get(providerId);
+  const provider = findProviderByModel(providers, params.model);
   if (!provider) {
-    yield { type: "error", error: `Provider not found: ${providerId}` };
+    yield { type: "error", error: `Unknown model: ${params.model}` };
     return;
   }
 

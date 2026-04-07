@@ -29,8 +29,8 @@ export function buildContext(
     return messages;
   }
 
-  // Strategy: keep recent messages verbatim, compress older ones into a summary
-  // Reserve 60% of budget for recent messages, 40% for compressed history
+  // Strategy: keep recent messages verbatim, compress older ones into a summary.
+  // Reserve 70% of budget for recent messages, 30% for compressed history.
   const recentBudget = Math.floor(tokenBudget * 0.7);
   const compressBudget = Math.floor(tokenBudget * 0.3);
 

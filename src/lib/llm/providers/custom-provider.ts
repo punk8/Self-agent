@@ -1,4 +1,8 @@
 import type { LLMProvider, ChatParams, StreamChunk, ModelInfo } from "../types";
+import {
+  parseAnthropicCompatibleStream,
+  parseOpenAICompatibleStream,
+} from "./stream-utils";
 
 export type CustomApiFormat = "openai" | "anthropic";
 
@@ -60,7 +64,7 @@ export class CustomProvider implements LLMProvider {
       return;
     }
 
-    yield* this.parseOpenAIStream(response);
+    yield* parseOpenAICompatibleStream(response);
   }
 
   private async *chatAnthropic(params: ChatParams): AsyncGenerator<StreamChunk> {
@@ -93,105 +97,6 @@ export class CustomProvider implements LLMProvider {
       return;
     }
 
-    yield* this.parseAnthropicStream(response);
-  }
-
-  private async *parseOpenAIStream(response: Response): AsyncGenerator<StreamChunk> {
-    const reader = response.body?.getReader();
-    if (!reader) {
-      yield { type: "error", error: "No response body" };
-      return;
-    }
-
-    const decoder = new TextDecoder();
-    let buffer = "";
-    let promptTokens = 0;
-    let completionTokens = 0;
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || !trimmed.startsWith("data: ")) continue;
-          const data = trimmed.slice(6);
-          if (data === "[DONE]") continue;
-
-          try {
-            const json = JSON.parse(data);
-            const delta = json.choices?.[0]?.delta;
-            if (delta?.content) {
-              yield { type: "token", content: delta.content };
-            }
-            if (json.usage) {
-              promptTokens = json.usage.prompt_tokens || 0;
-              completionTokens = json.usage.completion_tokens || 0;
-            }
-          } catch {
-            // skip malformed JSON
-          }
-        }
-      }
-    } finally {
-      reader.releaseLock();
-    }
-
-    yield { type: "usage", promptTokens, completionTokens };
-    yield { type: "done" };
-  }
-
-  private async *parseAnthropicStream(response: Response): AsyncGenerator<StreamChunk> {
-    const reader = response.body?.getReader();
-    if (!reader) {
-      yield { type: "error", error: "No response body" };
-      return;
-    }
-
-    const decoder = new TextDecoder();
-    let buffer = "";
-    let promptTokens = 0;
-    let completionTokens = 0;
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || !trimmed.startsWith("data: ")) continue;
-          const data = trimmed.slice(6);
-
-          try {
-            const json = JSON.parse(data);
-
-            if (json.type === "content_block_delta" && json.delta?.text) {
-              yield { type: "token", content: json.delta.text };
-            } else if (json.type === "message_start" && json.message?.usage) {
-              promptTokens = json.message.usage.input_tokens || 0;
-            } else if (json.type === "message_delta" && json.usage) {
-              completionTokens = json.usage.output_tokens || 0;
-            }
-          } catch {
-            // skip
-          }
-        }
-      }
-    } finally {
-      reader.releaseLock();
-    }
-
-    yield { type: "usage", promptTokens, completionTokens };
-    yield { type: "done" };
+    yield* parseAnthropicCompatibleStream(response);
   }
 }

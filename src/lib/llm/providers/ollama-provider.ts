@@ -1,4 +1,5 @@
 import type { LLMProvider, ChatParams, StreamChunk, ModelInfo } from "../types";
+import { parseOllamaStream } from "./stream-utils";
 
 export class OllamaProvider implements LLMProvider {
   id = "ollama";
@@ -48,47 +49,6 @@ export class OllamaProvider implements LLMProvider {
       return;
     }
 
-    const reader = response.body?.getReader();
-    if (!reader) {
-      yield { type: "error", error: "No response body" };
-      return;
-    }
-
-    const decoder = new TextDecoder();
-    let buffer = "";
-    let promptTokens = 0;
-    let completionTokens = 0;
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          try {
-            const json = JSON.parse(line);
-            if (json.message?.content) {
-              yield { type: "token", content: json.message.content };
-            }
-            if (json.done) {
-              promptTokens = json.prompt_eval_count || 0;
-              completionTokens = json.eval_count || 0;
-            }
-          } catch {
-            // skip malformed JSON
-          }
-        }
-      }
-    } finally {
-      reader.releaseLock();
-    }
-
-    yield { type: "usage", promptTokens, completionTokens };
-    yield { type: "done" };
+    yield* parseOllamaStream(response);
   }
 }
