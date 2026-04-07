@@ -11,87 +11,116 @@ import { sendMessage } from "@/lib/api-client";
 export default function ChatPage() {
   const {
     messages,
-    isStreaming,
     activeConversationId,
     selectedModel,
     addUserMessage,
-    startAssistantMessage,
-    appendToAssistantMessage,
-    finishAssistantMessage,
-    setAssistantError,
-    setIsStreaming,
     setActiveConversationId,
     setSelectedModel,
-    setAbortController,
-    stopStreaming,
+    beginStream,
+    appendToken,
+    finishStream,
+    streamError,
+    stopStream,
+    isConversationStreaming,
     loadConversations,
     generateAndSetTitle,
   } = useConversationStore();
 
+  const currentStreaming = activeConversationId
+    ? isConversationStreaming(activeConversationId)
+    : false;
+
   const handleSend = useCallback(
     async (content: string) => {
-      if (isStreaming) return;
+      // Allow sending even if another conversation is streaming
+      // But block if THIS conversation is streaming
+      if (activeConversationId && isConversationStreaming(activeConversationId)) return;
 
       const controller = new AbortController();
-      setAbortController(controller);
+      const convId = activeConversationId; // may be undefined for new conv
 
       addUserMessage(content);
-      startAssistantMessage();
-      setIsStreaming(true);
+
+      // Create the streaming assistant message in current messages
+      const store = useConversationStore.getState();
+      const updatedMessages = [
+        ...store.messages,
+        { id: `assistant-${Date.now()}`, role: "assistant" as const, content: "", isStreaming: true },
+      ];
+      useConversationStore.setState({ messages: updatedMessages });
+
+      // We don't know the real convId yet for new conversations
+      // Use a temp key, will be updated when server responds
+      const streamKey = convId || `new-${Date.now()}`;
+      beginStream(streamKey, controller, updatedMessages);
 
       try {
         const stream = sendMessage({
-          conversationId: activeConversationId,
+          conversationId: convId,
           content,
           model: selectedModel,
           signal: controller.signal,
         });
 
+        let resolvedConvId = convId;
+
         for await (const event of stream) {
           switch (event.type) {
             case "token":
-              appendToAssistantMessage(event.content || "");
+              appendToken(resolvedConvId || streamKey, event.content || "");
               break;
-            case "done":
-              if (event.conversationId && !activeConversationId) {
-                setActiveConversationId(event.conversationId);
-                generateAndSetTitle(event.conversationId);
+            case "done": {
+              const newConvId = event.conversationId;
+              if (newConvId && !convId) {
+                // New conversation created — migrate stream key
+                resolvedConvId = newConvId;
+                const streams = new Map(useConversationStore.getState().activeStreams);
+                const old = streams.get(streamKey);
+                if (old) {
+                  streams.delete(streamKey);
+                  streams.set(newConvId, old);
+                  useConversationStore.setState({ activeStreams: streams });
+                }
+                setActiveConversationId(newConvId);
+                generateAndSetTitle(newConvId);
                 loadConversations();
               }
-              finishAssistantMessage(event.messageId || "");
+              finishStream(resolvedConvId || streamKey, event.messageId || "");
               break;
+            }
             case "error":
-              setAssistantError(event.error || "Unknown error");
+              streamError(resolvedConvId || streamKey, event.error || "Unknown error");
               break;
           }
         }
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
-          // User stopped the stream - just finalize
+          // User stopped
         } else {
-          setAssistantError(err instanceof Error ? err.message : "Unknown error");
+          streamError(convId || streamKey, err instanceof Error ? err.message : "Unknown error");
         }
-      } finally {
-        setIsStreaming(false);
-        setAbortController(null);
       }
     },
     [
-      isStreaming,
       activeConversationId,
       selectedModel,
       addUserMessage,
-      startAssistantMessage,
-      appendToAssistantMessage,
-      finishAssistantMessage,
-      setAssistantError,
-      setIsStreaming,
       setActiveConversationId,
-      setAbortController,
+      beginStream,
+      appendToken,
+      finishStream,
+      streamError,
+      isConversationStreaming,
       loadConversations,
       generateAndSetTitle,
     ]
   );
+
+  const handleStop = useCallback(() => {
+    if (activeConversationId) {
+      stopStream(activeConversationId);
+    }
+  }, [activeConversationId, stopStream]);
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -102,13 +131,18 @@ export default function ChatPage() {
         </div>
         <div className="flex items-center gap-3">
           <ModelSelector value={selectedModel} onChange={setSelectedModel} />
-        {activeConversationId && messages.length > 0 && (
-          <ExportNoteButton conversationId={activeConversationId} />
-        )}
+          {activeConversationId && messages.length > 0 && (
+            <ExportNoteButton conversationId={activeConversationId} />
+          )}
         </div>
       </div>
       <MessageList messages={messages} />
-      <ChatInput onSend={handleSend} disabled={isStreaming} onStop={stopStreaming} isStreaming={isStreaming} />
+      <ChatInput
+        onSend={handleSend}
+        disabled={currentStreaming}
+        onStop={handleStop}
+        isStreaming={currentStreaming}
+      />
     </div>
   );
 }

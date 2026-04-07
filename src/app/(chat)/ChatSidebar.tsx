@@ -4,7 +4,8 @@ import { useEffect, useCallback } from "react";
 import { useConversationStore } from "@/stores/conversation-store";
 import { ConversationList } from "@/components/sidebar/ConversationList";
 import { updateConversation } from "@/lib/api-client";
-import { BookOpen, MessagesSquare, Settings } from "lucide-react";
+import { BookOpen, MessagesSquare, Settings, LogOut } from "lucide-react";
+import { signOut } from "next-auth/react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -88,7 +89,7 @@ export function ChatSidebar({
           onClick={onNavigate}
           title="设置"
           className={cn(
-            "story-link group relative flex rounded-2xl px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent/65 hover:text-foreground",
+            "story-link group relative mb-1 flex rounded-2xl px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent/65 hover:text-foreground",
             collapsed ? "justify-center" : "items-center gap-2"
           )}
         >
@@ -96,6 +97,18 @@ export function ChatSidebar({
           {!collapsed && "设置"}
           {collapsed && <CompactHint label="设置" />}
         </Link>
+        <button
+          onClick={() => signOut({ callbackUrl: "/login" })}
+          title="退出登录"
+          className={cn(
+            "story-link group relative flex w-full rounded-2xl px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive",
+            collapsed ? "justify-center" : "items-center gap-2"
+          )}
+        >
+          <LogOut className="h-4 w-4" />
+          {!collapsed && "退出"}
+          {collapsed && <CompactHint label="退出" />}
+        </button>
         {collapsed && (
           <button
             type="button"

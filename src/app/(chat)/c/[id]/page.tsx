@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, use } from "react";
-import { useCallback } from "react";
+import { useEffect, use, useCallback } from "react";
 import { MessageList } from "@/components/chat/MessageList";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { useConversationStore } from "@/stores/conversation-store";
@@ -11,15 +10,15 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
   const { id } = use(params);
   const {
     messages,
-    isStreaming,
     activeConversationId,
     selectConversation,
     addUserMessage,
-    startAssistantMessage,
-    appendToAssistantMessage,
-    finishAssistantMessage,
-    setAssistantError,
-    setIsStreaming,
+    beginStream,
+    appendToken,
+    finishStream,
+    streamError,
+    stopStream,
+    isConversationStreaming,
     loadConversations,
   } = useConversationStore();
 
@@ -29,57 +28,61 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
     }
   }, [id, activeConversationId, selectConversation]);
 
+  const currentStreaming = isConversationStreaming(id);
+
   const handleSend = useCallback(
     async (content: string) => {
-      if (isStreaming) return;
+      if (currentStreaming) return;
 
+      const controller = new AbortController();
       addUserMessage(content);
-      startAssistantMessage();
-      setIsStreaming(true);
+
+      const store = useConversationStore.getState();
+      const updatedMessages = [
+        ...store.messages,
+        { id: `assistant-${Date.now()}`, role: "assistant" as const, content: "", isStreaming: true },
+      ];
+      useConversationStore.setState({ messages: updatedMessages });
+      beginStream(id, controller, updatedMessages);
 
       try {
         const stream = sendMessage({
           conversationId: id,
           content,
+          signal: controller.signal,
         });
 
         for await (const event of stream) {
           switch (event.type) {
             case "token":
-              appendToAssistantMessage(event.content || "");
+              appendToken(id, event.content || "");
               break;
             case "done":
-              finishAssistantMessage(event.messageId || "");
+              finishStream(id, event.messageId || "");
               loadConversations();
               break;
             case "error":
-              setAssistantError(event.error || "Unknown error");
+              streamError(id, event.error || "Unknown error");
               break;
           }
         }
       } catch (err) {
-        setAssistantError(err instanceof Error ? err.message : "Unknown error");
-      } finally {
-        setIsStreaming(false);
+        if (!(err instanceof DOMException && err.name === "AbortError")) {
+          streamError(id, err instanceof Error ? err.message : "Unknown error");
+        }
       }
     },
-    [
-      id,
-      isStreaming,
-      addUserMessage,
-      startAssistantMessage,
-      appendToAssistantMessage,
-      finishAssistantMessage,
-      setAssistantError,
-      setIsStreaming,
-      loadConversations,
-    ]
+    [id, currentStreaming, addUserMessage, beginStream, appendToken, finishStream, streamError, loadConversations]
   );
+
+  const handleStop = useCallback(() => {
+    stopStream(id);
+  }, [id, stopStream]);
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <MessageList messages={messages} />
-      <ChatInput onSend={handleSend} disabled={isStreaming} />
+      <ChatInput onSend={handleSend} disabled={currentStreaming} onStop={handleStop} isStreaming={currentStreaming} />
     </div>
   );
 }
